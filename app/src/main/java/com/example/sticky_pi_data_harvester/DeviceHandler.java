@@ -18,9 +18,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.location.Location;
+import android.net.nsd.NsdManager;
+import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 
 public class DeviceHandler extends Thread {
+
+    // fixme socket factory
+    //  https://github.com/square/okhttp/pull/4865
+    NsdManager.ResolveListener resolveListener;
     private Location location;
     String host_address;
     int port;
@@ -38,7 +44,7 @@ public class DeviceHandler extends Thread {
     long last_pace;
     URL status_url;
 
-    private static String TAG;
+    private final  static String TAG = "DEV_HANDLE";
 
     private static String readAll(Reader rd) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -62,16 +68,42 @@ public class DeviceHandler extends Thread {
     }
 
 
-    public DeviceHandler(InetAddress host, int port, String name, Location loc){
-        super("Thread-" + name.split("-")[1]);
-        device_id = name.split("-")[1];
+//    public DeviceHandler(InetAddress host, int port, String name, Location loc){
+    public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, NsdManager nsdManager){
+        super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
 
-        TAG = "StickyPiDataHarvester-DeviceHandler" + "-" + device_id;
 
-        host_address = host.getHostAddress();
+        resolveListener = new NsdManager.ResolveListener() {
+            @Override
+            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+                Log.e(TAG, "FAILED to resolve");
+            }
+            @Override
+            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
+                port = nsdServiceInfo.getPort();
+                host_address = nsdServiceInfo.getHost().getHostAddress();
+                try {
+                    status_url = new URL("http", host_address, port, "status");
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        nsdManager.resolveService(serviceInfo, resolveListener);
+
+        device_id =  serviceInfo.getServiceName().split("-")[1];
+
+
+// fixme here we should capture which interface this IP is valid on  (e.g. wlan0),
+        // this must be done at discovery time
+
+//        Log.w(TAG, host.getHostAddress());
+//        Log.w(TAG, host.getHostName());
+//        Log.w(TAG, host.getCanonicalHostName());
+//        Log.w(TAG, host.getAddress());
         location = loc;
 
-        Log.i(TAG, "Registering device" + device_id + "for sync. IP = " + host.getHostAddress());
+        Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
 //        Log.w(TAG,"======================================================");
 //        Log.w(TAG,host.getHostName());
 //        Log.w(TAG, host.getCanonicalHostName());
@@ -79,20 +111,18 @@ public class DeviceHandler extends Thread {
 //        Log.w(TAG, base_url);
 //        base_url = "http://" + host_address + ":" + String.valueOf(port);
         last_pace = Instant.now().getEpochSecond();
-        try {
-            status_url = new URL("http", host_address, port, "status");
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
+
     }
 
 
     private  void get_metadata() {
+
         InputStream stream = null;
-        // first get metadata
+//         first get metadata
         try {
+            Log.w(TAG, "URL: " + status_url.toString());
             JSONObject out = readJsonFromUrl(status_url.toString());
-            Log.i(TAG, out.toString());
+            Log.w(TAG, "OUT: " + out.toString());
             device_id = out.getString("device_id");
             version = out.getString("version");
             datetime  = (long) out.getDouble("datetime");
@@ -108,11 +138,21 @@ public class DeviceHandler extends Thread {
     }
     private  void set_metadata() {
         JSONObject json = new JSONObject();
-
+        double lat, lng, alt;
+        if(location != null) {
+            lat = location.getLatitude();
+            lng = location.getLongitude();
+            alt = location.getAltitude();
+        }
+        else{
+            lat = 0;
+            lng = 0;
+            alt = 0;
+        }
         try {
-            json.put("lat",location.getLatitude());
-            json.put("lng",location.getLongitude());
-            json.put("alt",location.getAltitude());
+            json.put("lat",lat);
+            json.put("lng",lng);
+            json.put("alt",alt);
             json.put("datetime", (long) Instant.now().getEpochSecond());
         } catch (JSONException e) {
             e.printStackTrace();
@@ -121,14 +161,22 @@ public class DeviceHandler extends Thread {
     }
 
     public void run() {
-        get_metadata();
+//
         // Second, set metadata
-        set_metadata();
-        get_metadata();
+//
+//        get_metadata();
 
 
         while (true){
-            Log.i(TAG, "running!");
+            if( host_address != null) {
+                Log.i(TAG, "Running: " + device_id + ", " + host_address + ":"+ port);
+                get_metadata();
+//                set_metadata();
+
+            }
+            else {
+                Log.w(TAG, "Resolving: " + device_id );
+            }
             try {
                 sleep(1000);
             } catch (InterruptedException e) {

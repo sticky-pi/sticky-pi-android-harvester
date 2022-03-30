@@ -1,33 +1,31 @@
 package com.example.sticky_pi_data_harvester;
 
-import com.example.sticky_pi_data_harvester.DeviceHandler;
-
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.net.nsd.NsdManager;
-import android.net.nsd.NsdManager.DiscoveryListener;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.view.View;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.text.format.Formatter;
+import android.location.LocationManager;
+import android.location.LocationListener;
+import android.location.Location;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.material.snackbar.Snackbar;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.provider.Settings;
-import android.view.ContextThemeWrapper;
-import android.view.View;
-
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -35,28 +33,12 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
 
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.time.Instant;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.net.NetworkInterface;
 import java.net.InetAddress;
 import java.net.SocketException;
-
-import android.text.format.Formatter;
-
-import android.location.LocationManager;
-import android.location.LocationListener;
-import android.location.Location;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import org.json.JSONException;
+import java.util.concurrent.CountDownLatch;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
@@ -65,47 +47,28 @@ import pub.devrel.easypermissions.EasyPermissions;
 //public class MainActivity extends AppCompatActivity{
 public class MainActivity extends AppCompatActivity {
 
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-    private static final String TAG = "StickyPiDataHarvester";
-    private static final String SERVICE_TYPE = "_http._tcp.";
-    private static final String SERVICE_NAME_PREFIX = "StickyPi-";
-    private static final String SPI_HARVESTER_NAME_PATTERN = "spi-harvester";
-    private String location_provider;
-    private AppBarConfiguration appBarConfiguration;
-    private Location location;
-    private LocationManager locationManager;
-    private LocationListener locationListener;
-    private ActivityMainBinding binding;
-    private NsdManager mNsdManager;
-    private NsdManager.DiscoveryListener spiDiscoveryListener;
-    private NsdManager.ResolveListener spiResolveListener;
-    private Context gps_context;
-    private final IntentFilter intentFilter = new IntentFilter();
-    WifiP2pManager.Channel channel;
-    WifiP2pManager manager;
-    WiFiDirectBroadcastReceiver receiver;
+    static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    static final String TAG = "StickyPiDataHarvester";
+    static final String SERVICE_TYPE = "_http._tcp.";
+    static final String SERVICE_NAME_PREFIX = "StickyPi-";
+//    static final String SPI_HARVESTER_NAME_PATTERN = "spi-harvester";
+    String location_provider;
+    AppBarConfiguration appBarConfiguration;
+    Location location;
+    LocationManager locationManager;
+    LocationListener locationListener;
+    ActivityMainBinding binding;
+    NsdManager mNsdManager;
+    NsdManager.DiscoveryListener spiDiscoveryListener;
 
-    Hashtable<String, DeviceHandler> device_dict = new Hashtable<String, DeviceHandler>();
+    Context gps_context;
+    final IntentFilter intentFilter = new IntentFilter();
+//    CountDownLatch latch = new CountDownLatch(1);
+//    WifiP2pManager.Channel channel;
+//    WifiP2pManager manager;
+//    WiFiDirectBroadcastReceiver receiver;
 
-
-    public String getLocalIpAddress() {
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
-                NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress()) {
-                        String ip = Formatter.formatIpAddress(inetAddress.hashCode());
-                        Log.i(TAG, "***** IP=" + ip);
-                        return ip;
-                    }
-                }
-            }
-        } catch (SocketException ex) {
-            Log.e(TAG, ex.toString());
-        }
-        return null;
-    }
+    Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
 
     public void initializeDiscoveryListener() {
         Log.w(TAG, "Init Discovery");
@@ -129,42 +92,35 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onDiscoveryStopped(String serviceType) {
+                Log.w(TAG, "Discovery Stopped");
             }
 
             @Override
             public void onServiceFound(NsdServiceInfo serviceInfo) {
+
                 String name = serviceInfo.getServiceName();
                 String type = serviceInfo.getServiceType();
+                Log.e(TAG, "Found: "+ name + " " + type);
                 if (type.equals(SERVICE_TYPE) && name.startsWith(SERVICE_NAME_PREFIX)) {
-                    spiResolveListener = new NsdManager.ResolveListener() {
 
-                        @Override
-                        public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+                    DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, mNsdManager);
 
-                        }
+                    if(device_dict.containsKey(dev_handl.device_id)) {
+                        //fixme here we stop if we already have a device with the same name
+                        Log.w(TAG, "Device " + dev_handl.device_id + " already registered.");
+                        //
+                        return;
+                    }
 
-                        @Override
-                        public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                            Log.w(TAG, "RESOLVED");
-                            Log.w(TAG, String.valueOf(nsdServiceInfo.getHost()));
-                            Log.w(TAG, String.valueOf(nsdServiceInfo.getServiceName()));
-
-                            DeviceHandler dev_handl = new DeviceHandler(nsdServiceInfo.getHost(),
-                                    nsdServiceInfo.getPort(),
-                                    name, location);
-
-                            device_dict.containsKey(dev_handl.device_id); //fixme do something if device already linked
-                            dev_handl.run();
-                            device_dict.put(dev_handl.device_id, dev_handl);
-
-                        }
-                    };
-                    mNsdManager.resolveService(serviceInfo, spiResolveListener);
+                    device_dict.put(dev_handl.device_id, dev_handl);
+                    Log.e(TAG,"MAP: " + dev_handl.device_id);
+                    device_dict.get(dev_handl.device_id).start();
                 }
             }
 
             @Override
             public void onServiceLost(NsdServiceInfo serviceInfo) {
+                Log.e(TAG, "Service lost");
             }
         };
     }
@@ -182,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
                 location_textview.setText(text);
             }
 
+
             @Override
             public void onProviderEnabled(String provider) {
             }
@@ -197,10 +154,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // wifi direct https://developer.android.com/training/connect-devices-wirelessly/wifi-direct
-        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
-        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
-        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
 
 
 //        // fixme changing the name of the group fails. setting device name by hand for now
@@ -278,24 +235,24 @@ public class MainActivity extends AppCompatActivity {
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
 
 
-        manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-        channel = manager.initialize(this, getMainLooper(), null);
-
-
-        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                // Device is ready to accept incoming connections from peers.
-                Log.i(TAG, "P2P group created!");
-            }
-            @Override
-            public void onFailure(int reason) {
-//                Toast.makeText(WiFiDirectActivity.this, "P2P group creation failed. Retry.",
-//                        Toast.LENGTH_SHORT).show();
-                // TODO OK if group already exists
-                Log.e(TAG, "P2P group creation FAILED");
-            }
-        });
+//        manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
+//        channel = manager.initialize(this, getMainLooper(), null);
+//
+//
+//        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
+//            @Override
+//            public void onSuccess() {
+//                // Device is ready to accept incoming connections from peers.
+//                Log.i(TAG, "P2P group created!");
+//            }
+//            @Override
+//            public void onFailure(int reason) {
+////                Toast.makeText(WiFiDirectActivity.this, "P2P group creation failed. Retry.",
+////                        Toast.LENGTH_SHORT).show();
+//                // TODO OK if group already exists
+//                Log.e(TAG, "P2P group creation FAILED");
+//            }
+//        });
 
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -323,14 +280,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        receiver = new WiFiDirectBroadcastReceiver(manager, channel, this);
-        registerReceiver(receiver, intentFilter);
+//        receiver = new WiFiDirectBroadcastReceiver(manager, channel, this);
+//        registerReceiver(receiver, intentFilter);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        unregisterReceiver(receiver);
+//        unregisterReceiver(receiver);
     }
 
     @Override
