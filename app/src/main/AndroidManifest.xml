@@ -9,8 +9,6 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
-
     <uses-permission
         android:required="true"
         android:name="android.permission.ACCESS_WIFI_STATE"/>
@@ -31,6 +29,7 @@
         android:theme="@style/Theme.StickyPiDataHarvester"
         android:networkSecurityConfig="@xml/network_security_config"
         android:keepScreenOn="true"
+        android:requestLegacyExternalStorage="true"
         >
         <activity
             android:name=".MainActivity"

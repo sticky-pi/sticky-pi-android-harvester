@@ -7,6 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".FirstFragment">
 
+
 <!--    <TextView-->
 <!--        android:id="@+id/textview_first"-->
 <!--        android:layout_width="wrap_content"-->
@@ -17,36 +18,59 @@
 <!--        app:layout_constraintHorizontal_bias="0.498"-->
 <!--        app:layout_constraintStart_toStartOf="parent"-->
 <!--        app:layout_constraintTop_toTopOf="parent" />-->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+
+    <!--        app:layout_constraintTop_toBottomOf="@id/textview_first" -->
 
     <Button
         android:id="@+id/button_first"
-        android:layout_width="wrap_content"
+        android:layout_width="127dp"
         android:layout_height="wrap_content"
         android:text="@string/next"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
-
-    <!--        app:layout_constraintTop_toBottomOf="@id/textview_first" -->
     <TextView
         android:id="@+id/location_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:drawableLeft="@drawable/ic_baseline_map_24"
         android:text="No Location data!"
+        tools:ignore="MissingConstraints"
         tools:layout_editor_absoluteX="25dp"
         tools:layout_editor_absoluteY="16dp" />
 
-    <TableLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:stretchColumns="1"
-        tools:layout_editor_absoluteX="25dp"
-        tools:layout_editor_absoluteY="100dp">
 
-    </TableLayout>
+    <GridView
+        android:id="@+id/device_grid_view"
+        android:useDefaultMargins="false"
+        android:layout_marginStart="16dp"
+        android:layout_marginLeft="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="16dp"
+        android:numColumns="3"
+        android:stretchMode="columnWidth"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
 
+
+        />
+
+<!--    <TableLayout-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="match_parent"-->
+<!--        android:stretchColumns="1"-->
+<!--        tools:layout_editor_absoluteX="25dp"-->
+<!--        tools:layout_editor_absoluteY="100dp">-->
+
+<!--    </TableLayout>-->
+</LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

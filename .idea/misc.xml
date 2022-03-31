@@ -3,6 +3,7 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="app/src/main/res/drawable/rectangle.xml" value="0.116" />
         <entry key="app/src/main/res/drawable/sticky_pi_harvester.xml" value="0.1625" />
         <entry key="app/src/main/res/drawable/sticky_pi_harvester_background.xml" value="0.1425" />
         <entry key="app/src/main/res/drawable/sticky_pi_harvester_icon.xml" value="0.1625" />
@@ -10,7 +11,9 @@
         <entry key="app/src/main/res/drawable/sticky_pi_harvester_round.xml" value="0.184" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.1" />
         <entry key="app/src/main/res/layout/content_main.xml" value="0.2418478260869565" />
-        <entry key="app/src/main/res/layout/fragment_first.xml" value="0.2" />
+        <entry key="app/src/main/res/layout/fragment_first.xml" value="0.1743249644718143" />
+        <entry key="app/src/main/res/layout/grid_item_layout.xml" value="0.9" />
+        <entry key="app/src/main/res/layout/grid_layout_item.xml" value="0.1" />
         <entry key="app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" value="0.1425" />
         <entry key="app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml" value="0.184" />
         <entry key="app/src/main/res/mipmap-anydpi-v26/sticky_pi_harvester_icon.xml" value="0.162" />

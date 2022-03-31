@@ -1,5 +1,7 @@
 package com.example.sticky_pi_data_harvester;
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -9,6 +11,8 @@ import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.view.View;
 import android.util.Log;
 import android.view.Menu;
@@ -17,6 +21,7 @@ import android.text.format.Formatter;
 import android.location.LocationManager;
 import android.location.LocationListener;
 import android.location.Location;
+import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,6 +38,8 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.net.NetworkInterface;
@@ -59,10 +66,27 @@ public class MainActivity extends AppCompatActivity {
     LocationListener locationListener;
     ActivityMainBinding binding;
     NsdManager mNsdManager;
+    File appSpecificExternalDir;
     NsdManager.DiscoveryListener spiDiscoveryListener;
-
+    DeviceAdapter device_adapter;
+//    DeviceAdapter device_adapter;
     Context gps_context;
     final IntentFilter intentFilter = new IntentFilter();
+    private Handler mHandler = new Handler();
+
+    private Runnable mUpdateTimeTask = new Runnable() {
+        public void run() {
+            try {
+                if(device_adapter != null)
+                    device_adapter.notifyDataSetChanged();
+                else
+                    Log.e(TAG, "device adapter is NULL!!");
+            }
+            finally {
+                mHandler.postDelayed(this, 1000);
+            }
+        }
+    };
 //    CountDownLatch latch = new CountDownLatch(1);
 //    WifiP2pManager.Channel channel;
 //    WifiP2pManager manager;
@@ -95,6 +119,52 @@ public class MainActivity extends AppCompatActivity {
                 Log.w(TAG, "Discovery Stopped");
             }
 
+            private void startResolveService(NsdServiceInfo serviceInfo){
+                NsdManager.ResolveListener newResolveListener = new NsdManager.ResolveListener() {
+                    @Override
+                    public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
+                        switch (errorCode) {
+                            case NsdManager.FAILURE_ALREADY_ACTIVE:
+                                Log.w(TAG, "Failed to resolve " + serviceInfo.getServiceName()+". Retrying.");
+                                // Just try again...
+                                try {
+                                    sleep(100);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                startResolveService(serviceInfo);
+                                break;
+                            case NsdManager.FAILURE_INTERNAL_ERROR:
+                                Log.e(TAG, "FAILURE_INTERNAL_ERROR");
+                                break;
+                            case NsdManager.FAILURE_MAX_LIMIT:
+                                Log.e(TAG, "FAILURE_MAX_LIMIT");
+                                break;
+                        }
+                    }
+
+                    @Override
+                    public void onServiceResolved(NsdServiceInfo serviceInfo) {
+                        Log.i(TAG, "Service Resolved: " + serviceInfo);
+                        DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, appSpecificExternalDir);
+
+                        if(device_dict.containsKey(dev_handl.device_id)) {
+                            if (device_dict.get(dev_handl.device_id).isAlive()) {
+                                Log.w(TAG, "Device " + dev_handl.device_id + " already registered and running.");
+                                return;
+                            } else {
+                                Log.w(TAG, "Device handler for " + dev_handl.device_id + " is dead. restarting.");
+                                device_dict.remove(dev_handl.device_id);
+                            }
+                        }
+
+                        device_dict.put(dev_handl.device_id, dev_handl);
+                        device_dict.get(dev_handl.device_id).start();
+                    }
+                };
+                mNsdManager.resolveService(serviceInfo, newResolveListener);
+            }
+
             @Override
             public void onServiceFound(NsdServiceInfo serviceInfo) {
 
@@ -102,19 +172,9 @@ public class MainActivity extends AppCompatActivity {
                 String type = serviceInfo.getServiceType();
                 Log.e(TAG, "Found: "+ name + " " + type);
                 if (type.equals(SERVICE_TYPE) && name.startsWith(SERVICE_NAME_PREFIX)) {
+//                    DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, mNsdManager);
+                 startResolveService(serviceInfo);
 
-                    DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, mNsdManager);
-
-                    if(device_dict.containsKey(dev_handl.device_id)) {
-                        //fixme here we stop if we already have a device with the same name
-                        Log.w(TAG, "Device " + dev_handl.device_id + " already registered.");
-                        //
-                        return;
-                    }
-
-                    device_dict.put(dev_handl.device_id, dev_handl);
-                    Log.e(TAG,"MAP: " + dev_handl.device_id);
-                    device_dict.get(dev_handl.device_id).start();
                 }
             }
 
@@ -134,7 +194,9 @@ public class MainActivity extends AppCompatActivity {
                 location = loc;
                 TextView location_textview = (TextView) findViewById(R.id.location_text_view);
                 String text = "";
-                text += location.getLatitude() + ", "+ location.getLongitude() + ", " + location.getAltitude();
+                text += String.format("%.8f",location.getLatitude()) +
+                        ", " + String.format("%.8f", location.getLongitude()) +
+                        ", " + String.format("%.1f", location.getAltitude());
                 location_textview.setText(text);
             }
 
@@ -152,69 +214,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // wifi direct https://developer.android.com/training/connect-devices-wirelessly/wifi-direct
-//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
-//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
-//        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
-
-
-//        // fixme changing the name of the group fails. setting device name by hand for now
-//        try {
-//            manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-//            channel = manager.initialize(this, getMainLooper(),
-//                    new WifiP2pManager.ChannelListener() {
-//                @Override
-//                public void onChannelDisconnected() {
-//                    manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-//                }
-//            });
-//            Class[] paramTypes = new Class[3];
-//            paramTypes[0] = WifiP2pManager.Channel.class;
-//            paramTypes[1] = String.class;
-//            paramTypes[2] = WifiP2pManager.ActionListener.class;
-//            Method setDeviceName = manager.getClass().getMethod(
-//                    "setDeviceName", paramTypes);
-//            setDeviceName.setAccessible(true);
-//
-//            Object arglist[] = new Object[3];
-//            arglist[0] = channel;
-//            arglist[1] = SPI_HARVESTER_NAME_PATTERN;
-//            arglist[2] = new WifiP2pManager.ActionListener() {
-//                @Override
-//                public void onSuccess() {
-//                    Log.d("setDeviceName succeeded", "true");
-//                }
-//
-//                @Override
-//                public void onFailure(int reason) {
-//                    Log.w("Device name change FAILED", String.valueOf(reason));
-//                }
-//            };
-//            setDeviceName.invoke(manager, arglist);
-//
-//        } catch (NoSuchMethodException e) {
-//            e.printStackTrace();
-//        } catch (IllegalAccessException e) {
-//            e.printStackTrace();
-//        } catch (IllegalArgumentException e) {
-//            e.printStackTrace();
-//        } catch (InvocationTargetException e) {
-//            e.printStackTrace();
-//        }
+        appSpecificExternalDir = getApplicationContext().getExternalFilesDir(null);
+        Log.e(TAG, String.valueOf(appSpecificExternalDir));
+            device_adapter = new DeviceAdapter(this, device_dict);
 
 
 
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
 
@@ -234,27 +241,6 @@ public class MainActivity extends AppCompatActivity {
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
 
-
-//        manager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
-//        channel = manager.initialize(this, getMainLooper(), null);
-//
-//
-//        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
-//            @Override
-//            public void onSuccess() {
-//                // Device is ready to accept incoming connections from peers.
-//                Log.i(TAG, "P2P group created!");
-//            }
-//            @Override
-//            public void onFailure(int reason) {
-////                Toast.makeText(WiFiDirectActivity.this, "P2P group creation failed. Retry.",
-////                        Toast.LENGTH_SHORT).show();
-//                // TODO OK if group already exists
-//                Log.e(TAG, "P2P group creation FAILED");
-//            }
-//        });
-
-
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -263,7 +249,6 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -274,7 +259,12 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
+        final GridView gridView = (GridView) findViewById(R.id.device_grid_view);
 
+        gridView.setAdapter(device_adapter);
+        mUpdateTimeTask.run();
+        // on destroy:
+//        mHandler.removeCallbacks(mUpdateTimeTask);
     }
 
     @Override

@@ -1,18 +1,29 @@
 package com.example.sticky_pi_data_harvester;
 
+import java.io.BufferedInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
+import java.util.Iterator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,7 +31,9 @@ import org.json.JSONObject;
 import android.location.Location;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.os.Environment;
 import android.util.Log;
+
 
 public class DeviceHandler extends Thread {
 
@@ -29,20 +42,63 @@ public class DeviceHandler extends Thread {
     NsdManager.ResolveListener resolveListener;
     private Location location;
     String host_address;
-    int port;
-    String base_url;
     String device_id;
-    int n_to_download;
+    String target_dir;
+    String last_image_path;
+    String status = "starting"; // syncing, "errored", "done"
+
+    int port;
+    boolean is_mock=false;
+
+    long device_datetime;
+    long time_created;
+    int n_to_download = -1;
     int n_downloaded = 0;
     int n_skipped = 0;
     int n_errored = 0;
+    int battery_level=0;
 
-    long datetime;
-    String version;
-    int battery_level;
-    float available_disk_space;
+    String version = "";
+    float available_disk_space = -1;
     long last_pace;
-    URL status_url;
+
+    URL status_url, images_url,keep_alive_url, metadata_url, clear_disk_url;
+
+    public String get_device_id(){
+        return device_id;
+    }
+
+    public int get_n_to_download(){
+        return n_to_download;
+    }
+
+    public int get_n_downloaded(){
+        return n_downloaded;
+    }
+
+    public int get_n_errored(){
+        return n_errored;
+    }
+
+    public int get_n_skipped(){
+        return n_skipped;
+    }
+
+    public float get_battery_level(){
+        return battery_level;
+    }
+
+    public float get_available_disk_space(){
+        return available_disk_space;
+    }
+
+    public String get_last_image_path(){
+        return last_image_path;
+    }
+    public String get_status(){
+        return status;
+    }
+
 
     private final  static String TAG = "DEV_HANDLE";
 
@@ -66,77 +122,218 @@ public class DeviceHandler extends Thread {
             is.close();
         }
     }
-
-
-//    public DeviceHandler(InetAddress host, int port, String name, Location loc){
-    public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, NsdManager nsdManager){
-        super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
-
-
-        resolveListener = new NsdManager.ResolveListener() {
-            @Override
-            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                Log.e(TAG, "FAILED to resolve");
+    public static boolean createDirIfNotExists(String path) {
+        boolean ret = true;
+        if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+            Log.e(TAG, "Storage is not mounted");
+            return false;
+        }
+        File file = new File(path);
+        if (!file.exists()) {
+            Log.i(TAG, "Creating: " + file.getAbsolutePath());
+            if (!file.mkdirs()) {
+                Log.e(TAG, "Problem creating Image folder");
+                ret = false;
             }
-            @Override
-            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                port = nsdServiceInfo.getPort();
-                host_address = nsdServiceInfo.getHost().getHostAddress();
-                try {
-                    status_url = new URL("http", host_address, port, "status");
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-        nsdManager.resolveService(serviceInfo, resolveListener);
-
-        device_id =  serviceInfo.getServiceName().split("-")[1];
-
-
-// fixme here we should capture which interface this IP is valid on  (e.g. wlan0),
-        // this must be done at discovery time
-
-//        Log.w(TAG, host.getHostAddress());
-//        Log.w(TAG, host.getHostName());
-//        Log.w(TAG, host.getCanonicalHostName());
-//        Log.w(TAG, host.getAddress());
-        location = loc;
-
-        Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
-//        Log.w(TAG,"======================================================");
-//        Log.w(TAG,host.getHostName());
-//        Log.w(TAG, host.getCanonicalHostName());
-//        Log.w(TAG, device_id);
-//        Log.w(TAG, base_url);
-//        base_url = "http://" + host_address + ":" + String.valueOf(port);
-        last_pace = Instant.now().getEpochSecond();
-
+        }
+        else{
+            Log.i(TAG, "Already exists: " + file.getAbsolutePath());
+        }
+        return ret;
     }
+//    public DeviceHandler(InetAddress host, int port, String name, Location loc){
+    public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, File storage_dir){
+        super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
+        time_created = Instant.now().getEpochSecond();
+        port = serviceInfo.getPort();
+        host_address = serviceInfo.getHost().getHostAddress();
+        try {
+            status_url = new URL("http", host_address, port, "status");
+            images_url = new URL("http", host_address, port, "images");
+            // posts
+            keep_alive_url = new URL("http", host_address, port, "keep_alive");
+            metadata_url = new URL("http", host_address, port, "metadata");
+            clear_disk_url = new URL("http", host_address, port, "clear_disk");
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+        device_id =  serviceInfo.getServiceName().split("-")[1];
+        location = loc;
+        Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
+        last_pace = Instant.now().getEpochSecond();
+        //fixme CHECK permissions/ presence of sd card
+        target_dir =  storage_dir + "/" + device_id; }
 
 
-    private  void get_metadata() {
-
-        InputStream stream = null;
-//         first get metadata
+    private  boolean get_metadata() {
         try {
             Log.w(TAG, "URL: " + status_url.toString());
             JSONObject out = readJsonFromUrl(status_url.toString());
             Log.w(TAG, "OUT: " + out.toString());
             device_id = out.getString("device_id");
             version = out.getString("version");
-            datetime  = (long) out.getDouble("datetime");
+            device_datetime  = (long) out.getDouble("datetime");
             available_disk_space = (float) out.getDouble("available_disk_space");
+            if(out.has("is_mock_device"))
+                is_mock = out.getInt("is_mock_device") != 0;
+
+
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+            return false;
+        }
+        Log.i(TAG, "Device status");
+        return true;
+    }
+    private String compute_hash(String path){
+        try {
+            return String.valueOf(Files.size(Paths.get(path )));
+        } catch (IOException e) {
+            return "";
+        }
+    }
+    private  void get_single_image(URL remote_url, String path, String hash, int retry) {
+        Log.i(TAG, "Getting: "+ remote_url.toString());
+//
+        if(retry > 3){
+            Log.e(TAG, "Max retry reached. Failed to get image " + remote_url.toString());
+            n_errored ++;
+            return;
+        }
+
+        final String tmp_path  = path + ".tmp";
+
+        if (new File(path).exists()){
+            if(compute_hash(path).equals(hash)){
+                Log.i(TAG, "Skipping preexisting image: " + remote_url);
+                n_skipped ++;
+                return;
+            }
+        }
+
+//        File tmp_file = new File(tmp_path);
+
+        URLConnection connection = null;
+        try {
+            connection = remote_url.openConnection();
+            connection.connect();
+//            int lenghtOfFile = connection.getContentLength();
+            InputStream input = new BufferedInputStream(remote_url.openStream(),
+                    8192);
+            OutputStream output = new FileOutputStream(tmp_path);
+
+            byte data[] = new byte[1024];
+            long total = 0;
+            int count;
+            while ((count = input.read(data)) != -1) {
+                total += count;
+                output.write(data, 0, count);
+            }
+            output.flush();
+            output.close();
+            input.close();
 
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (JSONException e) {
-            e.printStackTrace();
+            get_single_image(remote_url, path, hash, retry +1);
         }
 
-        Log.i(TAG, "Device status");
+        String local_hash = compute_hash(tmp_path);
+
+        if(hash.equals(local_hash)) {
+            File tmp_file = new File(tmp_path);
+            tmp_file.renameTo(new File(path));
+            n_downloaded++;
+            return;
+        }
+        else {
+            Log.w(TAG, "Wrong hash " + local_hash + " != " + hash + " for image: " + remote_url.toString() + ". Retrying...");
+            get_single_image(remote_url, path, hash, retry +1);
+        }
     }
-    private  void set_metadata() {
+
+    private  boolean get_images() {
+        try {
+            Log.w(TAG, "URL: " + images_url.toString());
+            JSONObject out = readJsonFromUrl(images_url.toString());
+            Iterator<String> it = out.keys();
+            n_to_download = 0;
+            while (it.hasNext()) {
+                n_to_download+=1;
+                it.next();
+            }
+            ThreadPoolExecutor executor =
+                    (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
+            it = out.keys();
+            while (it.hasNext()){
+                String k = it.next();
+                String hash = out.getString(k);
+                String filename = device_id + "." + k + ".jpg";
+                URL image_url = new URL("http", host_address, port, "static/" + filename);
+                executor.submit( () -> {
+                    get_single_image(image_url, target_dir + "/" + filename, hash, 0);
+                    keep_alive();
+
+                    if(is_mock) {
+                        try {
+                            sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    private  boolean keep_alive(){
+        JSONObject json = new JSONObject();
+
+        try {
+            json.put("device_id", device_id);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return false;
+        }
+        Log.i(TAG, "POSTING" + json.toString());
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) keep_alive_url.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            DataOutputStream out_stream  = new DataOutputStream(conn.getOutputStream());
+
+            out_stream.writeBytes(json.toString());
+            out_stream.flush();
+            out_stream.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+        try {
+            if (200 != conn.getResponseCode()) {
+               Log.e(TAG, "POST failed");
+               return false;
+           }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+        conn.disconnect();
+        return true;
+    }
+
+    private  boolean set_metadata() throws IOException {
         JSONObject json = new JSONObject();
         double lat, lng, alt;
         if(location != null) {
@@ -156,32 +353,63 @@ public class DeviceHandler extends Thread {
             json.put("datetime", (long) Instant.now().getEpochSecond());
         } catch (JSONException e) {
             e.printStackTrace();
+            return false;
         }
         Log.i(TAG, "POSTING" + json.toString());
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) metadata_url.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            DataOutputStream out_stream  = new DataOutputStream(conn.getOutputStream());
+
+            out_stream.writeBytes(json.toString());
+            out_stream.flush();
+            out_stream.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+        if (200 != conn.getResponseCode()) {
+            Log.e(TAG, "POST failed");
+            return false;
+        }
+        conn.disconnect();
+        return true;
     }
 
+
     public void run() {
-//
-        // Second, set metadata
-//
-//        get_metadata();
+        createDirIfNotExists(target_dir);
 
-
+        //fixme timeout here
         while (true){
-            if( host_address != null) {
                 Log.i(TAG, "Running: " + device_id + ", " + host_address + ":"+ port);
-                get_metadata();
-//                set_metadata();
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (! get_metadata())
+                    continue;
+                try {
+                    if (! set_metadata())
+                        continue;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    continue;
+                }
+                status = "syncing";
+                get_images();
+                status = "done";
+                return;
 
-            }
-            else {
-                Log.w(TAG, "Resolving: " + device_id );
-            }
-            try {
-                sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
         }
     }
 
