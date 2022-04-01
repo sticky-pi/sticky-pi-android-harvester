@@ -1,6 +1,7 @@
 package com.example.sticky_pi_data_harvester;
 
 import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -68,7 +69,7 @@ public class DeviceAdapter extends BaseAdapter {
         if (convertView == null) {
             convertView = layoutInflater.inflate(R.layout.grid_item_layout, null);
             holder = new ViewHolder();
-//            holder.flagView = (ImageView) convertView.findViewById(R.id.imageView_flag);
+                holder.last_image = (ImageView) convertView.findViewById(R.id.image_view_last_image);
 //            holder.countryNameView = (TextView) convertView.findViewById(R.id.textView_countryName);
                 holder.device_id = (TextView) convertView.findViewById(R.id.text_view_device_id);
                 holder.downloaded_files = (TextView) convertView.findViewById(R.id.text_view_downloaded_files);
@@ -91,7 +92,23 @@ public class DeviceAdapter extends BaseAdapter {
 
         holder.downloaded_files.setText(txt);
         holder.battery_level.setText(String.format("%.2f", device_handler.get_battery_level()));
+
+        if(device_handler.get_status().equals("done")) {
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_check_12, 0);
+        }else if(device_handler.get_status().equals("syncing")){
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
+
+        }else if((device_handler.get_status().equals("starting"))){
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_hourglass_top_12, 0);
+        }else{
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_error_12, 0);
+        }
         holder.available_disk_space.setText(String.format("%.2f", device_handler.get_available_disk_space()));
+        String img_path =device_handler.get_last_image_path();
+        if(img_path.compareTo("") != 0) {
+            Uri img_uri=Uri.parse(img_path);
+            holder.last_image.setImageURI(img_uri);
+        }
 //        int imageId = this.getMipmapResIdByName(country.getFlagName());
 
 //        holder.flagView.setImageResource(imageId);
@@ -111,7 +128,7 @@ public class DeviceAdapter extends BaseAdapter {
 
     static class ViewHolder {
 
-//        ImageView flagView;
+        ImageView last_image;
         TextView device_id;
         TextView battery_level;
         TextView available_disk_space;

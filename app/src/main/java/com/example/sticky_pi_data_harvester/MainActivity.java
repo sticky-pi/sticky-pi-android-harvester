@@ -77,8 +77,10 @@ public class MainActivity extends AppCompatActivity {
     private Runnable mUpdateTimeTask = new Runnable() {
         public void run() {
             try {
-                if(device_adapter != null)
+                if(device_adapter != null) {
                     device_adapter.notifyDataSetChanged();
+                    Log.e("TODEL", "updating adapter");
+                }
                 else
                     Log.e(TAG, "device adapter is NULL!!");
             }

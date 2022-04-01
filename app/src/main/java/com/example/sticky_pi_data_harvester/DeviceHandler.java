@@ -9,9 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -24,12 +22,14 @@ import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
-import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Environment;
 import android.util.Log;
@@ -37,14 +37,11 @@ import android.util.Log;
 
 public class DeviceHandler extends Thread {
 
-    // fixme socket factory
-    //  https://github.com/square/okhttp/pull/4865
-    NsdManager.ResolveListener resolveListener;
     private Location location;
     String host_address;
     String device_id;
     String target_dir;
-    String last_image_path;
+    String last_image_path = "";
     String status = "starting"; // syncing, "errored", "done"
 
     int port;
@@ -63,6 +60,9 @@ public class DeviceHandler extends Thread {
     long last_pace;
 
     URL status_url, images_url,keep_alive_url, metadata_url, clear_disk_url;
+
+    static final int THUMBNAIL_HEIGHT = 96;
+    static final int THUMBNAIL_WIDTH = 128;
 
     public String get_device_id(){
         return device_id;
@@ -112,14 +112,11 @@ public class DeviceHandler extends Thread {
     }
 
     public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        InputStream is = new URL(url).openStream();
-        try {
+        try (InputStream is = new URL(url).openStream()) {
             BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
             String jsonText = readAll(rd);
             JSONObject json = new JSONObject(jsonText);
             return json;
-        } finally {
-            is.close();
         }
     }
     public static boolean createDirIfNotExists(String path) {
@@ -193,13 +190,13 @@ public class DeviceHandler extends Thread {
             return "";
         }
     }
-    private  void get_single_image(URL remote_url, String path, String hash, int retry) {
+    private  boolean get_single_image(URL remote_url, String path, String hash, int retry) {
         Log.i(TAG, "Getting: "+ remote_url.toString());
 //
         if(retry > 3){
             Log.e(TAG, "Max retry reached. Failed to get image " + remote_url.toString());
             n_errored ++;
-            return;
+            return false;
         }
 
         final String tmp_path  = path + ".tmp";
@@ -208,12 +205,9 @@ public class DeviceHandler extends Thread {
             if(compute_hash(path).equals(hash)){
                 Log.i(TAG, "Skipping preexisting image: " + remote_url);
                 n_skipped ++;
-                return;
+                return true;
             }
         }
-
-//        File tmp_file = new File(tmp_path);
-
         URLConnection connection = null;
         try {
             connection = remote_url.openConnection();
@@ -224,10 +218,8 @@ public class DeviceHandler extends Thread {
             OutputStream output = new FileOutputStream(tmp_path);
 
             byte data[] = new byte[1024];
-            long total = 0;
             int count;
             while ((count = input.read(data)) != -1) {
-                total += count;
                 output.write(data, 0, count);
             }
             output.flush();
@@ -236,24 +228,63 @@ public class DeviceHandler extends Thread {
 
         } catch (IOException e) {
             e.printStackTrace();
-            get_single_image(remote_url, path, hash, retry +1);
+            return get_single_image(remote_url, path, hash, retry +1);
         }
 
         String local_hash = compute_hash(tmp_path);
 
         if(hash.equals(local_hash)) {
             File tmp_file = new File(tmp_path);
-            tmp_file.renameTo(new File(path));
+            make_thumbnail(tmp_file, new File(path + ".tumbnail"));
+            File out = new File(path);
+            tmp_file.renameTo(out);
+
+            //fixme iff > than previous
+            File last_image_file = new File(last_image_path);
+            if(last_image_file.getName().compareTo(out.getName()) < 0 )
+                last_image_path = out.getAbsolutePath();
+
             n_downloaded++;
-            return;
+            return true;
         }
         else {
             Log.w(TAG, "Wrong hash " + local_hash + " != " + hash + " for image: " + remote_url.toString() + ". Retrying...");
-            get_single_image(remote_url, path, hash, retry +1);
+            return  get_single_image(remote_url, path, hash, retry +1);
         }
     }
+    private void make_thumbnail(File file, File target){
 
+        BitmapFactory.Options bitmapOptions = new BitmapFactory.Options();
+        bitmapOptions.inJustDecodeBounds = true; // obtain the size of the image, without loading it in memory
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bitmapOptions);
+
+// find the best scaling factor for the desired dimensions
+        int desiredWidth = THUMBNAIL_WIDTH;
+        int desiredHeight = THUMBNAIL_HEIGHT;
+        float widthScale = (float)bitmapOptions.outWidth/desiredWidth;
+        float heightScale = (float)bitmapOptions.outHeight/desiredHeight;
+        float scale = Math.min(widthScale, heightScale);
+
+        int sampleSize = 1;
+        while (sampleSize < scale) {
+            sampleSize *= 2;
+        }
+        bitmapOptions.inSampleSize = sampleSize; // this value must be a power of 2,
+        // this is why you can not have an image scaled as you would like
+        bitmapOptions.inJustDecodeBounds = false; // now we want to load the image
+        Bitmap thumbnail = BitmapFactory.decodeFile(file.getAbsolutePath(), bitmapOptions);
+        try {
+            FileOutputStream fos = new FileOutputStream(target);
+            thumbnail.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+            fos.flush();
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        thumbnail.recycle();
+    }
     private  boolean get_images() {
+//        boolean errored = false;
         try {
             Log.w(TAG, "URL: " + images_url.toString());
             JSONObject out = readJsonFromUrl(images_url.toString());
@@ -273,6 +304,9 @@ public class DeviceHandler extends Thread {
                 URL image_url = new URL("http", host_address, port, "static/" + filename);
                 executor.submit( () -> {
                     get_single_image(image_url, target_dir + "/" + filename, hash, 0);
+//                            {
+//                        errored = true;
+//                    }
                     keep_alive();
 
                     if(is_mock) {
@@ -284,11 +318,14 @@ public class DeviceHandler extends Thread {
                     }
                 });
             }
-        } catch (IOException | JSONException e) {
+
+            executor.shutdown();
+            executor.awaitTermination(15, TimeUnit.MINUTES);
+        } catch (IOException | JSONException | InterruptedException e) {
             e.printStackTrace();
             return false;
         }
-        return true;
+        return n_errored == 0;
     }
 
     private  boolean keep_alive(){
@@ -405,9 +442,14 @@ public class DeviceHandler extends Thread {
                     continue;
                 }
                 status = "syncing";
-                get_images();
-                status = "done";
-                return;
+                if(get_images()) {
+                    //fixme send clear disk and shutdown info
+                    status = "done";
+                }
+                else {
+                    status = "errored";
+                }
+            return;
 
 
         }
