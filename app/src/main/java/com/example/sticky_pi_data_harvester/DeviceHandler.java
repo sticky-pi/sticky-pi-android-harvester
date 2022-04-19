@@ -1,8 +1,10 @@
 package com.example.sticky_pi_data_harvester;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +16,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.time.Instant;
 
 import java.io.BufferedReader;
@@ -34,8 +38,13 @@ import android.net.nsd.NsdServiceInfo;
 import android.os.Environment;
 import android.util.Log;
 
+//fixme does not work when connected to nordvpn app!!
 
 public class DeviceHandler extends Thread {
+    final static double VOLTAGE_DIVIDER = 0.6;
+    final static double REF_VOLTAGE = 3.3;
+    final static double MAX_LIPO_VOLTAGE = 4.2;
+    final static double MIN_LIPO_VOLTAGE = 3.5;
 
     private Location location;
     String host_address;
@@ -59,7 +68,7 @@ public class DeviceHandler extends Thread {
     float available_disk_space = -1;
     long last_pace;
 
-    URL status_url, images_url,keep_alive_url, metadata_url, clear_disk_url;
+    URL status_url, images_url,keep_alive_url, metadata_url, clear_disk_url, stop_url, log_url;
 
     static final int THUMBNAIL_HEIGHT = 96;
     static final int THUMBNAIL_WIDTH = 128;
@@ -68,6 +77,9 @@ public class DeviceHandler extends Thread {
         return device_id;
     }
 
+    public long get_device_datetime(){
+        return device_datetime;
+    }
     public int get_n_to_download(){
         return n_to_download;
     }
@@ -84,8 +96,14 @@ public class DeviceHandler extends Thread {
         return n_skipped;
     }
 
-    public float get_battery_level(){
-        return battery_level;
+    public int get_battery_level(){
+        double voltage = (battery_level / 100.0) * REF_VOLTAGE / VOLTAGE_DIVIDER;
+        double out = (voltage - MIN_LIPO_VOLTAGE) / (MAX_LIPO_VOLTAGE - MIN_LIPO_VOLTAGE);
+        if(out < 0)
+            out = 0;
+        if(out > 1)
+            out = 1;
+        return (int) (100 * out);
     }
 
     public float get_available_disk_space(){
@@ -95,6 +113,11 @@ public class DeviceHandler extends Thread {
     public String get_last_image_path(){
         return last_image_path;
     }
+
+    public long get_last_pace(){
+        return last_pace;
+    }
+
     public String get_status(){
         return status;
     }
@@ -147,10 +170,12 @@ public class DeviceHandler extends Thread {
         try {
             status_url = new URL("http", host_address, port, "status");
             images_url = new URL("http", host_address, port, "images");
+            log_url = new URL("http", host_address, port, "log");
             // posts
             keep_alive_url = new URL("http", host_address, port, "keep_alive");
             metadata_url = new URL("http", host_address, port, "metadata");
             clear_disk_url = new URL("http", host_address, port, "clear_disk");
+            stop_url = new URL("http", host_address, port, "stop");
 
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -160,8 +185,44 @@ public class DeviceHandler extends Thread {
         Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
         last_pace = Instant.now().getEpochSecond();
         //fixme CHECK permissions/ presence of sd card
-        target_dir =  storage_dir + "/" + device_id; }
+        target_dir =  storage_dir + "/" + device_id;
+        //fixme delettttttttttttttttttttttttttte
+        delete_local_files();
+    }
 
+    private void delete_local_files(){
+        File dir = new File(target_dir);
+        if (dir.isDirectory())
+        {
+            String[] children = dir.list();
+            for (int i = 0; i < children.length; i++)
+            {
+                new File(dir, children[i]).delete();
+            }
+        }
+    }
+
+    private  boolean get_log() {
+        try {
+            Log.w(TAG, "URL: " + log_url.toString());
+            JSONObject out = readJsonFromUrl(log_url.toString());
+            Log.w("TODEL", "OUT: " + out.toString());
+//            device_id = out.getString("device_id");
+//            version = out.getString("version");
+//            device_datetime  = (long) out.getDouble("datetime");
+//            available_disk_space = (float) out.getDouble("available_disk_space");
+//            battery_level = (int) out.getDouble("battery_level");
+//            if(out.has("is_mock_device"))
+//                is_mock = out.getInt("is_mock_device") != 0;
+
+
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+            return false;
+        }
+        last_pace = Instant.now().getEpochSecond();
+        return true;
+    }
 
     private  boolean get_metadata() {
         try {
@@ -172,6 +233,7 @@ public class DeviceHandler extends Thread {
             version = out.getString("version");
             device_datetime  = (long) out.getDouble("datetime");
             available_disk_space = (float) out.getDouble("available_disk_space");
+            battery_level = (int) out.getDouble("battery_level");
             if(out.has("is_mock_device"))
                 is_mock = out.getInt("is_mock_device") != 0;
 
@@ -181,6 +243,7 @@ public class DeviceHandler extends Thread {
             return false;
         }
         Log.i(TAG, "Device status");
+        last_pace = Instant.now().getEpochSecond();
         return true;
     }
     private String compute_hash(String path){
@@ -197,6 +260,7 @@ public class DeviceHandler extends Thread {
             Log.e(TAG, "Max retry reached. Failed to get image " + remote_url.toString());
             n_errored ++;
             return false;
+
         }
 
         final String tmp_path  = path + ".tmp";
@@ -205,18 +269,19 @@ public class DeviceHandler extends Thread {
             if(compute_hash(path).equals(hash)){
                 Log.i(TAG, "Skipping preexisting image: " + remote_url);
                 n_skipped ++;
+                last_pace = Instant.now().getEpochSecond();
                 return true;
             }
         }
-        URLConnection connection = null;
+        URLConnection conn = null;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
-            connection = remote_url.openConnection();
-            connection.connect();
-//            int lenghtOfFile = connection.getContentLength();
-            InputStream input = new BufferedInputStream(remote_url.openStream(),
-                    8192);
-            OutputStream output = new FileOutputStream(tmp_path);
-
+            conn = remote_url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.connect();
+            InputStream input = conn.getInputStream();
+//            OutputStream output = new FileOutputStream(tmp_path);
             byte data[] = new byte[1024];
             int count;
             while ((count = input.read(data)) != -1) {
@@ -226,16 +291,33 @@ public class DeviceHandler extends Thread {
             output.close();
             input.close();
 
+
+            if(is_mock) {
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
             return get_single_image(remote_url, path, hash, retry +1);
+        }
+
+        try(OutputStream outputStream = new FileOutputStream(tmp_path)) {
+            output.writeTo(outputStream);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         String local_hash = compute_hash(tmp_path);
 
         if(hash.equals(local_hash)) {
             File tmp_file = new File(tmp_path);
-            make_thumbnail(tmp_file, new File(path + ".tumbnail"));
+            make_thumbnail(tmp_file, new File(path + ".thumbnail"));
             File out = new File(path);
             tmp_file.renameTo(out);
 
@@ -245,6 +327,7 @@ public class DeviceHandler extends Thread {
                 last_image_path = out.getAbsolutePath();
 
             n_downloaded++;
+            last_pace = Instant.now().getEpochSecond();
             return true;
         }
         else {
@@ -290,6 +373,8 @@ public class DeviceHandler extends Thread {
             JSONObject out = readJsonFromUrl(images_url.toString());
             Iterator<String> it = out.keys();
             n_to_download = 0;
+            // todo images by date sort here
+//            so we get the old ones first!
             while (it.hasNext()) {
                 n_to_download+=1;
                 it.next();
@@ -304,18 +389,8 @@ public class DeviceHandler extends Thread {
                 URL image_url = new URL("http", host_address, port, "static/" + filename);
                 executor.submit( () -> {
                     get_single_image(image_url, target_dir + "/" + filename, hash, 0);
-//                            {
-//                        errored = true;
-//                    }
                     keep_alive();
 
-                    if(is_mock) {
-                        try {
-                            sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
                 });
             }
 
@@ -328,7 +403,8 @@ public class DeviceHandler extends Thread {
         return n_errored == 0;
     }
 
-    private  boolean keep_alive(){
+    private  boolean keep_alive_or_clear_disk(URL url){
+
         JSONObject json = new JSONObject();
 
         try {
@@ -340,7 +416,7 @@ public class DeviceHandler extends Thread {
         Log.i(TAG, "POSTING" + json.toString());
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) keep_alive_url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
@@ -369,6 +445,10 @@ public class DeviceHandler extends Thread {
         conn.disconnect();
         return true;
     }
+
+    private  boolean keep_alive(){return keep_alive_or_clear_disk(keep_alive_url);}
+    private  boolean clear_disk(){return keep_alive_or_clear_disk(clear_disk_url);}
+    private  boolean stop_server(){return keep_alive_or_clear_disk(stop_url);}
 
     private  boolean set_metadata() throws IOException {
         JSONObject json = new JSONObject();
@@ -434,6 +514,8 @@ public class DeviceHandler extends Thread {
                 }
                 if (! get_metadata())
                     continue;
+                if (! get_log())
+                    continue;
                 try {
                     if (! set_metadata())
                         continue;
@@ -442,8 +524,12 @@ public class DeviceHandler extends Thread {
                     continue;
                 }
                 status = "syncing";
+
                 if(get_images()) {
-                    //fixme send clear disk and shutdown info
+//                if(true) {
+                    Log.i(TAG,"Clearing disk");
+                    clear_disk();
+                    stop_server();
                     status = "done";
                 }
                 else {
