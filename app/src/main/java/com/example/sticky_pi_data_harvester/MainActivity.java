@@ -1,38 +1,28 @@
 package com.example.sticky_pi_data_harvester;
 
-import static java.lang.Thread.sleep;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.location.Criteria;
-import android.net.nsd.NsdManager;
-import android.net.nsd.NsdServiceInfo;
+import android.graphics.Bitmap;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.view.View;
+
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.location.LocationManager;
-import android.location.LocationListener;
-import android.location.Location;
+import android.view.View;
+import android.widget.ImageView;
+
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.google.android.material.snackbar.Snackbar;
-
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -43,17 +33,12 @@ import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
 import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
-
-import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.file.Path;
-import java.util.Enumeration;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
 import java.util.Hashtable;
-import java.net.NetworkInterface;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.util.concurrent.CountDownLatch;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
@@ -66,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     ActivityMainBinding binding;
     DeviceManagerService device_manager_service;
     boolean device_manager_service_bound =false;
+
 
     private ServiceConnection connection = new ServiceConnection() {
 
@@ -92,54 +78,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private WifiManager wifiManager;
-    WifiManager.LocalOnlyHotspotReservation hotspotReservation;
-
-    @AfterPermissionGranted(MY_PERMISSIONS_REQUEST_LOCATION)
-    public void turnOnHotspot() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        wifiManager.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
-
-            @RequiresApi(api = Build.VERSION_CODES.R)
-            @Override
-            public void onStarted(WifiManager.LocalOnlyHotspotReservation reservation) {
-
-
-                super.onStarted(reservation);
-                  hotspotReservation = reservation;
-                  WifiConfiguration currentConfig = hotspotReservation.getWifiConfiguration();
-
-                  Log.e("DANG", "THE PASSWORD IS: "
-                            + reservation.getSoftApConfiguration().getPassphrase()
-                        + " \n SSID is : "
-                        + reservation.getSoftApConfiguration().getSsid());
-
-
-            }
-
-
-            @Override
-            public void onStopped() {
-                super.onStopped();
-                Log.e("DANG", "Local Hotspot Stopped");
-            }
-
-            @Override
-            public void onFailed(int reason) {
-                super.onFailed(reason);
-                Log.e("DANG", "Local Hotspot failed to start");
-            }
-        }, new Handler());
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-
         requestLocationPermission();
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&

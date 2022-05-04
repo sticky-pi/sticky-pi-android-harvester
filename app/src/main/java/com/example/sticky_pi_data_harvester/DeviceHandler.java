@@ -45,7 +45,9 @@ public class DeviceHandler extends Thread {
     final static double REF_VOLTAGE = 3.3;
     final static double MAX_LIPO_VOLTAGE = 4.2;
     final static double MIN_LIPO_VOLTAGE = 3.5;
+    final static long KEEP_ALIVE_TIMEOUT = 30;
 
+    long last_keep_alive = 0;
     private Location location;
     String host_address;
     String device_id;
@@ -67,6 +69,7 @@ public class DeviceHandler extends Thread {
     String version = "";
     float available_disk_space = -1;
     long last_pace;
+    boolean first_boot = false;
 
     URL status_url, images_url,keep_alive_url, metadata_url, clear_disk_url, stop_url, log_url;
 
@@ -232,6 +235,7 @@ public class DeviceHandler extends Thread {
             device_id = out.getString("device_id");
             version = out.getString("version");
             device_datetime  = (long) out.getDouble("datetime");
+            first_boot  = (boolean) out.getBoolean("first_boot");
             available_disk_space = (float) out.getDouble("available_disk_space");
             battery_level = (int) out.getDouble("battery_level");
             if(out.has("is_mock_device"))
@@ -387,10 +391,15 @@ public class DeviceHandler extends Thread {
                 String hash = out.getString(k);
                 String filename = device_id + "." + k + ".jpg";
                 URL image_url = new URL("http", host_address, port, "static/" + filename);
+
+
                 executor.submit( () -> {
                     get_single_image(image_url, target_dir + "/" + filename, hash, 0);
-                    keep_alive();
-
+                    long now =  Instant.now().getEpochSecond();
+                    if (now - last_keep_alive > KEEP_ALIVE_TIMEOUT) {
+                        last_keep_alive = now;
+                        keep_alive();
+                    }
                 });
             }
 

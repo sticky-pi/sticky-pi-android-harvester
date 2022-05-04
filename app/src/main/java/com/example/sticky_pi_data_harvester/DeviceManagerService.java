@@ -7,29 +7,21 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
-import androidx.navigation.ui.AppBarConfiguration;
-
-import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
-
 import java.util.Hashtable;
-
-import pub.devrel.easypermissions.AfterPermissionGranted;
-import pub.devrel.easypermissions.EasyPermissions;
 
 public class DeviceManagerService extends Service {
 
@@ -46,19 +38,27 @@ public class DeviceManagerService extends Service {
     NsdManager.DiscoveryListener spiDiscoveryListener;
     Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
     Context gps_context;
-    String hello = "voila";
-    public Location get_location(){return location;}
+//
+//    private WifiManager wifiManager;
+//    WifiConfiguration currentConfig;
+//    WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
 
-    MyBinder binder=new MyBinder();
+//    String hello = "voila";
 
-    public class MyBinder extends Binder
-    {
-        public DeviceManagerService getService()
-        {
+    public Location get_location() {
+        return location;
+    }
+
+
+    MyBinder binder = new MyBinder();
+
+    public class MyBinder extends Binder {
+        public DeviceManagerService getService() {
             return DeviceManagerService.this;
         }
     }
+
 
 
     public void initializeDiscoveryListener() {
@@ -180,6 +180,7 @@ public class DeviceManagerService extends Service {
     @Override
     public void onCreate() {
         initializeLocationListener();
+
         gps_context = this;
         mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
         locationManager = (LocationManager) gps_context.getSystemService(Context.LOCATION_SERVICE);
