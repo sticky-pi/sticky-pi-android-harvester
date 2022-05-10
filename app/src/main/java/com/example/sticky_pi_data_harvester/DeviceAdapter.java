@@ -3,7 +3,6 @@ package com.example.sticky_pi_data_harvester;
 import android.content.Context;
 import android.graphics.Color;
 import android.net.Uri;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,13 +11,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.lang.reflect.Field;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.Period;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
@@ -34,9 +29,9 @@ public class DeviceAdapter extends BaseAdapter {
     public Hashtable<String, DeviceHandler> get_device_dict() {
         return main_activity.get_device_dict();
     }
-    public DeviceAdapter(Context aContext,  MainActivity main_activ) {
+    public DeviceAdapter(Context aContext,  MainActivity mainActivity) {
         this.context = aContext;
-        main_activity = main_activ;
+        main_activity = mainActivity;
         layoutInflater = LayoutInflater.from(aContext);
     }
 
@@ -45,7 +40,7 @@ public class DeviceAdapter extends BaseAdapter {
 
         int days = (int) Math.floor(seconds / (3600*24));
         int hrs   = (int) Math.floor(seconds / 3600);
-        long mnts = (long) Math.floor(seconds / 60);
+        long mins = (long) Math.floor(seconds / 60);
 
         if(days >= 2){
             return days + " d ago";
@@ -53,8 +48,8 @@ public class DeviceAdapter extends BaseAdapter {
         if(hrs >= 2){
             return hrs + " h ago";
         }
-        if(mnts >= 2){
-            return mnts + " min ago";
+        if(mins >= 2){
+            return mins + " min ago";
         }
         if(seconds <= 2 ) {
             return "now";
@@ -113,7 +108,6 @@ public class DeviceAdapter extends BaseAdapter {
             convertView = layoutInflater.inflate(R.layout.grid_item_layout, null);
             holder = new ViewHolder();
                 holder.last_image = (ImageView) convertView.findViewById(R.id.image_view_last_image);
-//            holder.countryNameView = (TextView) convertView.findViewById(R.id.textView_countryName);
                 holder.device_id = (TextView) convertView.findViewById(R.id.text_view_device_id);
                 holder.downloaded_files = (TextView) convertView.findViewById(R.id.text_view_downloaded_files);
                 holder.battery_level = (TextView) convertView.findViewById(R.id.text_view_battery_level);
@@ -125,7 +119,6 @@ public class DeviceAdapter extends BaseAdapter {
         }
 
         DeviceHandler device_handler = this.get_device_dict().get(position_to_key(position));
-//        holder.countryNameView.setText(country.getCountryName());
         assert device_handler != null;
 
         holder.device_id.setText(device_handler.get_device_id());
@@ -149,30 +142,19 @@ public class DeviceAdapter extends BaseAdapter {
         String battery_icon_name = "ic_baseline_battery_" + battery_icon_num + "_bar_12";
         int battery_icon_id = context.getResources().getIdentifier("drawable/" + battery_icon_name, null, context.getPackageName());
         holder.battery_level.setText(String.format("%02d", device_handler.get_battery_level())+ "%");
-//        holder.battery_level.(String.format("%.2f", device_handler.get_battery_level())+ "%");
         holder.battery_level.setCompoundDrawablesWithIntrinsicBounds(battery_icon_id, 0,0, 0);
 
 
-//        Date date = new java.util.Date(device_handler.time_created*1000L);
-//
-//        SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
-// give a timezone reference for formatting (see comment at the bottom)
-//        sdf.setTimeZone(java.util.TimeZone.getTimeZone("GMT-4"));
-//        String formattedDate =
-//        System.out.println(formattedDate);
-
         long delta_t =   Instant.now().getEpochSecond() - device_handler.get_last_pace();
 
-
         holder.last_pace.setText(secs_to_human_durations(delta_t));
-//        holder.last_transaction_start_datetime.setSelected(true);
         if(device_handler.get_status().equals("done")) {
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_check_12, 0);
         }else if(device_handler.get_status().equals("syncing")){
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
 
         }else if((device_handler.get_status().equals("starting"))){
-            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_hourglass_top_12, 0);
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_battery_2_bar_12, 0);
         }else{
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_error_12, 0);
         }
@@ -194,10 +176,13 @@ public class DeviceAdapter extends BaseAdapter {
         TextView battery_level;
         TextView available_disk_space;
         TextView downloaded_files;
-//        TextView last_transaction_start_datetime;
         TextView last_pace;
-//        TextView countryNameView;
-//        TextView populationView;
+        // Future implementation
+        /*
+          TextView last_transaction_start_datetime;
+          TextView countryNameView;
+          TextView populationView;
+        */
     }
 
 }

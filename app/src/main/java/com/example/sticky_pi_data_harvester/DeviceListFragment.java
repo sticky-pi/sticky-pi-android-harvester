@@ -53,11 +53,6 @@ public class DeviceListFragment extends Fragment {
     private WifiManager wifiManager;
     WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
-//
-//    public interface MyDialogCloseListener
-//    {
-//        public void handleDialogClose(DialogInterface dialog);//or whatever args you want
-//    }
     public void handleDialogClose(DialogInterface dialog){
         ImageView imageCode = getActivity().findViewById(R.id.local_only_ap_qr);
         imageCode.setImageAlpha(255);
@@ -238,15 +233,13 @@ public class DeviceListFragment extends Fragment {
     @Override
     public View onCreateView(
             @NonNull LayoutInflater inflater, ViewGroup container,
-            Bundle savedInstanceState
-    ) {
+            Bundle savedInstanceState) {
 
         binding = FragmentDeviceListBinding.inflate(inflater, container, false);
         parent_activity = (MainActivity) getActivity();
         device_adapter = new DeviceAdapter(this.getContext(), parent_activity);
 
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
-
 
         gridView.setAdapter(device_adapter);
         mUpdateTimeTask.run();

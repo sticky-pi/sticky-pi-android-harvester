@@ -96,38 +96,6 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-
-//        binding.fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
-
-
-//        wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-//        WifiInfo info = wifiManager.getConnectionInfo();
-//        Method[] methods = wifiManager.getClass().getDeclaredMethods();
-//        for (Method m: methods) {
-//            if (m.getName().equals("getWifiApConfiguration")) {
-//                WifiConfiguration config = null;
-//                try {
-//                    config = (WifiConfiguration)m.invoke(wifiManager);
-//                } catch (IllegalAccessException e) {
-//                    e.printStackTrace();
-//                } catch (InvocationTargetException e) {
-//                    e.printStackTrace();
-//                }
-//                Log.e("TODEL", config.SSID);
-//                // here, the "config" variable holds the info, your SSID is in
-//                // config.SSID
-//            }
-//        }
-//          turnOnHotspot();
-
-        // on destroy:
-//        mHandler.removeCallbacks(mUpdateTimeTask);
     }
     @Override
     protected void onStart() {

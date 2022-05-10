@@ -38,13 +38,6 @@ public class DeviceManagerService extends Service {
     NsdManager.DiscoveryListener spiDiscoveryListener;
     Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
     Context gps_context;
-//
-//    private WifiManager wifiManager;
-//    WifiConfiguration currentConfig;
-//    WifiManager.LocalOnlyHotspotReservation hotspotReservation;
-
-
-//    String hello = "voila";
 
     public Location get_location() {
         return location;
@@ -59,8 +52,6 @@ public class DeviceManagerService extends Service {
         }
     }
 
-
-
     public void initializeDiscoveryListener() {
         spiDiscoveryListener = new NsdManager.DiscoveryListener() {
             @Override
@@ -68,17 +59,14 @@ public class DeviceManagerService extends Service {
                 Log.e(TAG, "Discovery FAILED");
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onDiscoveryStarted(String serviceType) {
                 Log.w(TAG, "Discovery started");
             }
-
             @Override
             public void onDiscoveryStopped(String serviceType) {
                 Log.w(TAG, "Discovery Stopped");
@@ -176,10 +164,41 @@ public class DeviceManagerService extends Service {
         return device_dict;
     }
 
+    // For testing purposes only to mock actual app running with threads
+    // It has a timer to track for thread
+    /* Problem with threads running, as pausing it (possibly stopping as well) and resume back
+      it creates multiple instances and submit duplicate requests (NEEDS TO BE FIXED)
+    * */
+    public class Test extends Thread {
+        public Test() {
+            super("Thread");
+        }
+        public void run() {
+            int i = 1;
+            while(true) {
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                Log.i("Info", "time= " + i);
+                i++;
+            }
+        }
+    }
 
+    // Above are for testing only, remove Later
     @Override
     public void onCreate() {
+
+        // Below for testing only, remove later
+
+        Test test = new Test();
+        test.start();
+
+        // Above for testing only, remove later
         initializeLocationListener();
+
 
         gps_context = this;
         mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
@@ -198,6 +217,7 @@ public class DeviceManagerService extends Service {
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
     }
+
 
 
     @Override

@@ -1,6 +1,5 @@
 package com.example.sticky_pi_data_harvester;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -16,9 +15,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
 import java.time.Instant;
 
 import java.io.BufferedReader;
@@ -164,7 +161,6 @@ public class DeviceHandler extends Thread {
         }
         return ret;
     }
-//    public DeviceHandler(InetAddress host, int port, String name, Location loc){
     public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, File storage_dir){
         super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
         time_created = Instant.now().getEpochSecond();

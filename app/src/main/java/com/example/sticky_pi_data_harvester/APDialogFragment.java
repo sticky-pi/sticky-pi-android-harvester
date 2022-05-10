@@ -21,13 +21,12 @@ public class APDialogFragment extends DialogFragment {
     String m_pass;
     Bitmap m_img;
 
-    public void onDismiss(DialogInterface dialog)
-    {
+    public void onDismiss(DialogInterface dialog) {
         DeviceListFragment parent =  (DeviceListFragment) getParentFragment();
         parent.handleDialogClose(dialog);
     }
 
-    public  APDialogFragment(String ssid, String pass, Bitmap img){
+    public  APDialogFragment(String ssid, String pass, Bitmap img) {
         super();
         m_ssid = ssid;
         m_pass = pass;
