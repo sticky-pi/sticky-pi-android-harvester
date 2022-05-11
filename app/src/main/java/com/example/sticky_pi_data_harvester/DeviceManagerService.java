@@ -164,39 +164,11 @@ public class DeviceManagerService extends Service {
         return device_dict;
     }
 
-    // For testing purposes only to mock actual app running with threads
-    // It has a timer to track for thread
-    /* Problem with threads running, as pausing it (possibly stopping as well) and resume back
-      it creates multiple instances and submit duplicate requests (NEEDS TO BE FIXED)
-    * */
-    public class Test extends Thread {
-        public Test() {
-            super("Thread");
-        }
-        public void run() {
-            int i = 1;
-            while(true) {
-                try {
-                    sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                Log.i("Info", "time= " + i);
-                i++;
-            }
-        }
-    }
 
-    // Above are for testing only, remove Later
     @Override
     public void onCreate() {
 
-        // Below for testing only, remove later
-
-        Test test = new Test();
-        test.start();
-
-        // Above for testing only, remove later
+        Log.i("create", "service created");
         initializeLocationListener();
 
 

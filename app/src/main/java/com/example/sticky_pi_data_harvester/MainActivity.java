@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("activity", "onCreate"); // Placeholder for debug
         super.onCreate(savedInstanceState);
         requestLocationPermission();
 
@@ -96,32 +97,45 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+
+        Intent service_intent = new Intent(this, DeviceManagerService.class);
+        bindService(service_intent, connection, Context.BIND_AUTO_CREATE);
+
     }
     @Override
     protected void onStart() {
+        Log.d("activity", "onStart"); // Placeholder for debug
         super.onStart();
-        Intent service_intent = new Intent(this, DeviceManagerService.class);
-        bindService(service_intent, connection, Context.BIND_AUTO_CREATE);
-    }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        unbindService(connection);
-        device_manager_service_bound = false;
     }
-
 
     @Override
     public void onResume() {
+        Log.d("activity", "onResume"); // Placeholder for debug
         super.onResume();
     }
 
     @Override
     public void onPause() {
+        Log.d("activity", "onPause"); // Placeholder for debug
         super.onPause();
-        }
+    }
 
+
+    @Override
+    protected void onStop() {
+        Log.d("activity", "onStop"); // Placeholder for debug
+        super.onStop();
+
+    }
+
+    @Override
+    protected  void onDestroy() {
+        Log.d("activity", "onDestroy");
+        super.onDestroy();
+        unbindService(connection);
+        device_manager_service_bound = false;
+    }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
