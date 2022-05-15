@@ -53,11 +53,6 @@ public class DeviceListFragment extends Fragment {
     private WifiManager wifiManager;
     WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
-//
-//    public interface MyDialogCloseListener
-//    {
-//        public void handleDialogClose(DialogInterface dialog);//or whatever args you want
-//    }
     public void handleDialogClose(DialogInterface dialog){
         ImageView imageCode = getActivity().findViewById(R.id.local_only_ap_qr);
         imageCode.setImageAlpha(255);
@@ -197,6 +192,7 @@ public class DeviceListFragment extends Fragment {
             @Override
             public void onFailed(int reason) {
                 super.onFailed(reason);
+                generate_local_only_qr();
                 Log.e("DANG", "Local Hotspot failed to start");
             }
         }, new Handler());

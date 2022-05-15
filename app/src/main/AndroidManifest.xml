@@ -50,6 +50,7 @@
             </intent-filter>
         </activity>
         <service android:name=".DeviceManagerService" />
+        <service android:name=".FileManagerService" />
     </application>
 
 </manifest>

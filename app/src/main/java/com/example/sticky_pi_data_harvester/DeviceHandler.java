@@ -1,16 +1,19 @@
 package com.example.sticky_pi_data_harvester;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -40,12 +43,16 @@ import android.util.Log;
 
 //fixme does not work when connected to nordvpn app!!
 
+
 public class DeviceHandler extends Thread {
     final static double VOLTAGE_DIVIDER = 0.6;
     final static double REF_VOLTAGE = 3.3;
     final static double MAX_LIPO_VOLTAGE = 4.2;
     final static double MIN_LIPO_VOLTAGE = 3.5;
     final static long KEEP_ALIVE_TIMEOUT = 30;
+
+    // ghosts are persistent device status used to populate the initial view
+    protected boolean is_ghost = false;
 
     long last_keep_alive = 0;
     private Location location;
@@ -75,6 +82,38 @@ public class DeviceHandler extends Thread {
 
     static final int THUMBNAIL_HEIGHT = 96;
     static final int THUMBNAIL_WIDTH = 128;
+
+    public DeviceHandler() {
+    }
+
+    public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, File storage_dir){
+        super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
+        time_created = Instant.now().getEpochSecond();
+        port = serviceInfo.getPort();
+        host_address = serviceInfo.getHost().getHostAddress();
+        try {
+            status_url = new URL("http", host_address, port, "status");
+            images_url = new URL("http", host_address, port, "images");
+            log_url = new URL("http", host_address, port, "log");
+            // posts
+            keep_alive_url = new URL("http", host_address, port, "keep_alive");
+            metadata_url = new URL("http", host_address, port, "metadata");
+            clear_disk_url = new URL("http", host_address, port, "clear_disk");
+            stop_url = new URL("http", host_address, port, "stop");
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+        device_id =  serviceInfo.getServiceName().split("-")[1];
+        location = loc;
+        Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
+        last_pace = Instant.now().getEpochSecond();
+        //fixme CHECK permissions/ presence of sd card
+        target_dir =  storage_dir + "/" + device_id;
+        //fixme delettttttttttttttttttttttttttte
+        delete_local_files();
+    }
+
 
     public String get_device_id(){
         return device_id;
@@ -108,7 +147,7 @@ public class DeviceHandler extends Thread {
             out = 1;
         return (int) (100 * out);
     }
-
+    boolean get_is_ghost(){return is_ghost;}
     public float get_available_disk_space(){
         return available_disk_space;
     }
@@ -164,34 +203,6 @@ public class DeviceHandler extends Thread {
         }
         return ret;
     }
-//    public DeviceHandler(InetAddress host, int port, String name, Location loc){
-    public DeviceHandler(NsdServiceInfo serviceInfo, Location loc, File storage_dir){
-        super("Thread-" + serviceInfo.getServiceName().split("-")[1]);
-        time_created = Instant.now().getEpochSecond();
-        port = serviceInfo.getPort();
-        host_address = serviceInfo.getHost().getHostAddress();
-        try {
-            status_url = new URL("http", host_address, port, "status");
-            images_url = new URL("http", host_address, port, "images");
-            log_url = new URL("http", host_address, port, "log");
-            // posts
-            keep_alive_url = new URL("http", host_address, port, "keep_alive");
-            metadata_url = new URL("http", host_address, port, "metadata");
-            clear_disk_url = new URL("http", host_address, port, "clear_disk");
-            stop_url = new URL("http", host_address, port, "stop");
-
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-        device_id =  serviceInfo.getServiceName().split("-")[1];
-        location = loc;
-        Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
-        last_pace = Instant.now().getEpochSecond();
-        //fixme CHECK permissions/ presence of sd card
-        target_dir =  storage_dir + "/" + device_id;
-        //fixme delettttttttttttttttttttttttttte
-        delete_local_files();
-    }
 
     private void delete_local_files(){
         File dir = new File(target_dir);
@@ -207,17 +218,8 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_log() {
         try {
-            Log.w(TAG, "URL: " + log_url.toString());
             JSONObject out = readJsonFromUrl(log_url.toString());
-            Log.w("TODEL", "OUT: " + out.toString());
-//            device_id = out.getString("device_id");
-//            version = out.getString("version");
-//            device_datetime  = (long) out.getDouble("datetime");
-//            available_disk_space = (float) out.getDouble("available_disk_space");
-//            battery_level = (int) out.getDouble("battery_level");
-//            if(out.has("is_mock_device"))
-//                is_mock = out.getInt("is_mock_device") != 0;
-
+            //fixme write to file!
 
         } catch (IOException | JSONException e) {
             e.printStackTrace();
@@ -229,9 +231,7 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_metadata() {
         try {
-            Log.w(TAG, "URL: " + status_url.toString());
             JSONObject out = readJsonFromUrl(status_url.toString());
-            Log.w(TAG, "OUT: " + out.toString());
             device_id = out.getString("device_id");
             version = out.getString("version");
             device_datetime  = (long) out.getDouble("datetime");
@@ -395,6 +395,7 @@ public class DeviceHandler extends Thread {
 
                 executor.submit( () -> {
                     get_single_image(image_url, target_dir + "/" + filename, hash, 0);
+                    write_persistent_device_status();
                     long now =  Instant.now().getEpochSecond();
                     if (now - last_keep_alive > KEEP_ALIVE_TIMEOUT) {
                         last_keep_alive = now;
@@ -454,7 +455,6 @@ public class DeviceHandler extends Thread {
         conn.disconnect();
         return true;
     }
-
     private  boolean keep_alive(){return keep_alive_or_clear_disk(keep_alive_url);}
     private  boolean clear_disk(){return keep_alive_or_clear_disk(clear_disk_url);}
     private  boolean stop_server(){return keep_alive_or_clear_disk(stop_url);}
@@ -508,7 +508,37 @@ public class DeviceHandler extends Thread {
         conn.disconnect();
         return true;
     }
+    // we create a small file that saves information about a device
+    // in <data_dir>/<device_name>/status.json
+    public void write_persistent_device_status(){
+        JSONObject out = new JSONObject();
+        try {
+            out.put("device_id", device_id);
+            out.put("time_created", time_created);
+            out.put("n_errored", n_errored);
+            out.put("n_downloaded", n_downloaded);
+            out.put("n_to_download", n_to_download);
+            out.put("n_skipped", n_skipped);
+            out.put("status", status);
+            out.put("battery_level", battery_level);
+            out.put("available_disk_space", available_disk_space);
+            out.put("last_pace", last_pace);
+            out.put("last_image_path", last_image_path);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
+
+        Writer output = null;
+        File file = new File(target_dir +"/status.json");
+        try {
+            output = new BufferedWriter(new FileWriter(file));
+            output.write(out.toString());
+            output.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public void run() {
         createDirIfNotExists(target_dir);
@@ -521,10 +551,13 @@ public class DeviceHandler extends Thread {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
                 if (! get_metadata())
                     continue;
+                write_persistent_device_status();
                 if (! get_log())
                     continue;
+                write_persistent_device_status();
                 try {
                     if (! set_metadata())
                         continue;
@@ -535,18 +568,17 @@ public class DeviceHandler extends Thread {
                 status = "syncing";
 
                 if(get_images()) {
-//                if(true) {
                     Log.i(TAG,"Clearing disk");
+                    write_persistent_device_status();
                     clear_disk();
                     stop_server();
                     status = "done";
+                    write_persistent_device_status();
                 }
                 else {
                     status = "errored";
                 }
             return;
-
-
         }
     }
 

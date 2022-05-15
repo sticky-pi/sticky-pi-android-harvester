@@ -14,18 +14,25 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Hashtable;
 
 public class DeviceManagerService extends Service {
 
-    static final String TAG = "StickyPiDataHarvester:: DeviceManagerService";
+    static final String TAG = "StickyPiDataHarvester::DeviceManagerService";
     static final String SERVICE_TYPE = "_http._tcp.";
     static final String SERVICE_NAME_PREFIX = "StickyPi-";
     static final String UPDATE_LOCATION_INTENT = "UPDATE_LOCATION_INTENT";
@@ -38,18 +45,7 @@ public class DeviceManagerService extends Service {
     NsdManager.DiscoveryListener spiDiscoveryListener;
     Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
     Context gps_context;
-//
-//    private WifiManager wifiManager;
-//    WifiConfiguration currentConfig;
-//    WifiManager.LocalOnlyHotspotReservation hotspotReservation;
-
-
-//    String hello = "voila";
-
-    public Location get_location() {
-        return location;
-    }
-
+    File storage_dir = null;
 
     MyBinder binder = new MyBinder();
 
@@ -59,7 +55,45 @@ public class DeviceManagerService extends Service {
         }
     }
 
+    private void initialise_device_table(){
+        Log.d("Files", "Path: " + storage_dir);
+        File directory = new File(String.valueOf(storage_dir));
+        File[] files = directory.listFiles();
+        for (File file : files) {
+            if(file.isDirectory()){
 
+                File status_file = new File(file.getPath() + "/status.json");
+                if(status_file.isFile()){
+
+                    FileInputStream fi = null;
+                    try {
+                        fi = new FileInputStream(status_file);
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(fi));
+                        StringBuilder sb = new StringBuilder();
+                        String line = null;
+                        while ((line = reader.readLine()) != null) {
+                            sb.append(line).append("\n");
+                        }
+                        reader.close();
+                        JSONObject json = new JSONObject(sb.toString());
+                        DeviceGhostHandler dev_handler = new DeviceGhostHandler(json);
+                        if(dev_handler.get_device_id() != "")
+                            device_dict.put(dev_handler.get_device_id(), dev_handler);
+
+                    } catch (IOException | JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else{
+                    Log.e(TAG, "No ghost status file in " + file.getPath());
+                }
+            }
+        }
+    }
+
+    public Location get_location() {
+        return location;
+    }
 
     public void initializeDiscoveryListener() {
         spiDiscoveryListener = new NsdManager.DiscoveryListener() {
@@ -112,20 +146,20 @@ public class DeviceManagerService extends Service {
                     public void onServiceResolved(NsdServiceInfo serviceInfo) {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
 
-                        DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, getApplicationContext().getExternalFilesDir(null));
+                        DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
 
-                        if (device_dict.containsKey(dev_handl.device_id)) {
-                            if (device_dict.get(dev_handl.device_id).isAlive()) {
-                                Log.w(TAG, "Device " + dev_handl.device_id + " already registered and running.");
+                        if (device_dict.containsKey(dev_handl.get_device_id())) {
+                            if (device_dict.get(dev_handl.get_device_id()).isAlive()) {
+                                Log.w(TAG, "Device " + dev_handl.get_device_id() + " already registered and running.");
                                 return;
                             } else {
-                                Log.w(TAG, "Device handler for " + dev_handl.device_id + " is dead. restarting.");
-                                device_dict.remove(dev_handl.device_id);
+                                Log.w(TAG, "Device handler for " + dev_handl.get_device_id() + " is dead. restarting.");
+                                device_dict.remove(dev_handl.get_device_id());
                             }
                         }
 
-                        device_dict.put(dev_handl.device_id, dev_handl);
-                        device_dict.get(dev_handl.device_id).start();
+                        device_dict.put(dev_handl.get_device_id(), dev_handl);
+                        device_dict.get(dev_handl.get_device_id()).start();
                     }
                 };
                 mNsdManager.resolveService(serviceInfo, newResolveListener);
@@ -171,15 +205,15 @@ public class DeviceManagerService extends Service {
         };
     }
 
-
     public Hashtable<String, DeviceHandler> get_device_dict() {
         return device_dict;
     }
 
-
     @Override
     public void onCreate() {
+        storage_dir = getApplicationContext().getExternalFilesDir(null);
         initializeLocationListener();
+        initialise_device_table();
 
         gps_context = this;
         mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
@@ -197,6 +231,7 @@ public class DeviceManagerService extends Service {
 
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
+        Log.e("TODEL", "service created");
     }
 
 

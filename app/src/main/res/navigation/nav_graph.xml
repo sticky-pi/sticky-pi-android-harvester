@@ -13,13 +13,13 @@
 
         <action
             android:id="@+id/action_FirstFragment_to_SecondFragment"
-            app:destination="@id/SecondFragment" />
+            app:destination="@id/ImagesFragment" />
     </fragment>
     <fragment
-        android:id="@+id/SecondFragment"
-        android:name="com.example.sticky_pi_data_harvester.SecondFragment"
-        android:label="@string/second_fragment_label"
-        tools:layout="@layout/fragment_second" >
+        android:id="@+id/ImagesFragment"
+        android:name="com.example.sticky_pi_data_harvester.FileFragment"
+        android:label="Images"
+        tools:layout="@layout/fragment_image_files" >
 
         <action
             android:id="@+id/action_SecondFragment_to_FirstFragment"

@@ -7,23 +7,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.ImageView;
 
-import android.widget.TextView;
 import android.widget.Toast;
-import androidx.annotation.RequiresApi;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import androidx.core.app.ActivityCompat;
@@ -33,11 +25,7 @@ import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
 import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
-import com.journeyapps.barcodescanner.BarcodeEncoder;
+
 import java.util.Hashtable;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -50,14 +38,17 @@ public class MainActivity extends AppCompatActivity {
     AppBarConfiguration appBarConfiguration;
     ActivityMainBinding binding;
     DeviceManagerService device_manager_service;
+    FileManagerService file_manager_service;
     boolean device_manager_service_bound =false;
+    boolean file_manager_service_bound =false;
 
 
-    private ServiceConnection connection = new ServiceConnection() {
-
+    private ServiceConnection device_manager_service_connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
+
+            Log.e("TODEL", "device service connecteing");
             DeviceManagerService.MyBinder binder = (DeviceManagerService.MyBinder) service;
             device_manager_service = binder.getService();
             device_manager_service_bound = true;
@@ -68,6 +59,26 @@ public class MainActivity extends AppCompatActivity {
             device_manager_service_bound = false;
         }
     };
+
+
+    private ServiceConnection file_manager_service_connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            Log.e("TODEL", "file service connecteing");
+            FileManagerService.MyBinder binder = (FileManagerService.MyBinder) service;
+            file_manager_service = binder.getService();
+            file_manager_service_bound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            file_manager_service_bound = false;
+
+            Log.e("TODEL", "file disconnected");
+        }
+    };
+
 
     public Hashtable<String, DeviceHandler> get_device_dict() {
         if(device_manager_service == null) {
@@ -93,54 +104,30 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setSupportActionBar(binding.toolbar);
+
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
-//        binding.fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
+        Intent service_intent_fm = new Intent(this, FileManagerService.class);
+        bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
 
-
-//        wifiManager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-//        WifiInfo info = wifiManager.getConnectionInfo();
-//        Method[] methods = wifiManager.getClass().getDeclaredMethods();
-//        for (Method m: methods) {
-//            if (m.getName().equals("getWifiApConfiguration")) {
-//                WifiConfiguration config = null;
-//                try {
-//                    config = (WifiConfiguration)m.invoke(wifiManager);
-//                } catch (IllegalAccessException e) {
-//                    e.printStackTrace();
-//                } catch (InvocationTargetException e) {
-//                    e.printStackTrace();
-//                }
-//                Log.e("TODEL", config.SSID);
-//                // here, the "config" variable holds the info, your SSID is in
-//                // config.SSID
-//            }
-//        }
-//          turnOnHotspot();
-
-        // on destroy:
-//        mHandler.removeCallbacks(mUpdateTimeTask);
+        Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
+        bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
     }
     @Override
     protected void onStart() {
         super.onStart();
-        Intent service_intent = new Intent(this, DeviceManagerService.class);
-        bindService(service_intent, connection, Context.BIND_AUTO_CREATE);
+
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-        unbindService(connection);
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(device_manager_service_connection);
         device_manager_service_bound = false;
+        unbindService(file_manager_service_connection);
+        file_manager_service_bound = false;
     }
 
 

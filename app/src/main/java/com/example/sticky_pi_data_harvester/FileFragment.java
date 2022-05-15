@@ -9,11 +9,11 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
-import com.example.sticky_pi_data_harvester.databinding.FragmentSecondBinding;
+import com.example.sticky_pi_data_harvester.databinding.FragmentImageFilesBinding;
 
-public class SecondFragment extends Fragment {
+public class FileFragment extends Fragment {
 
-private FragmentSecondBinding binding;
+    private FragmentImageFilesBinding binding;
 
     @Override
     public View onCreateView(
@@ -21,7 +21,7 @@ private FragmentSecondBinding binding;
             Bundle savedInstanceState
     ) {
 
-      binding = FragmentSecondBinding.inflate(inflater, container, false);
+      binding = FragmentImageFilesBinding.inflate(inflater, container, false);
       return binding.getRoot();
 
     }
@@ -33,7 +33,7 @@ private FragmentSecondBinding binding;
             @Override
             public void onClick(View view) {
                 Log.e("test1", "2->1");
-                NavHostFragment.findNavController(SecondFragment.this)
+                NavHostFragment.findNavController(FileFragment.this)
                         .navigate(R.id.action_SecondFragment_to_FirstFragment);
             }
         });
