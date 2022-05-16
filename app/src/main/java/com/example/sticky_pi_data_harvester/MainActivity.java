@@ -1,6 +1,8 @@
 package com.example.sticky_pi_data_harvester;
 
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
@@ -14,6 +16,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,6 +29,7 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
 
+import java.util.ArrayList;
 import java.util.Hashtable;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -34,6 +38,7 @@ import pub.devrel.easypermissions.EasyPermissions;
 
 public class MainActivity extends AppCompatActivity {
     static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    static final String APP_TAG = "com.example.sticky_pi_data_harvester";
     static final String TAG = "StickyPiDataHarvester";
     AppBarConfiguration appBarConfiguration;
     ActivityMainBinding binding;
@@ -82,22 +87,35 @@ public class MainActivity extends AppCompatActivity {
 
     public Hashtable<String, DeviceHandler> get_device_dict() {
         if(device_manager_service == null) {
-            Log.w(TAG, "Service not bound, so returning empty table");
+            Log.w(TAG, "Device service not bound, so returning empty table");
             return new Hashtable<String, DeviceHandler>();
         }
         return device_manager_service.get_device_dict();
     }
 
 
+    public FileManagerService get_file_manager_service() {
+//        if(file_manager_service == null) {
+//            Log.w(TAG, "File service not bound, so returning empty list");
+//            return new ArrayList<>();
+//        }
+        return file_manager_service;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestLocationPermission();
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+        while (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
             ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //todo show error message ?!
-            return;
+            try {
+                sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         }
 //
 
@@ -114,6 +132,9 @@ public class MainActivity extends AppCompatActivity {
 
         Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
         bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
     }
     @Override
     protected void onStart() {
@@ -153,10 +174,13 @@ public class MainActivity extends AppCompatActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
+
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController.navigate(R.id.PreferenceFragment);
             return true;
         }
 
@@ -169,6 +193,8 @@ public class MainActivity extends AppCompatActivity {
         return NavigationUI.navigateUp(navController, appBarConfiguration)
                 || super.onSupportNavigateUp();
     }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {

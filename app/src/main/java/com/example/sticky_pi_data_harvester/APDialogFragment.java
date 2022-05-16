@@ -3,6 +3,7 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,10 +21,13 @@ public class APDialogFragment extends DialogFragment {
     String m_ssid;
     String m_pass;
     Bitmap m_img;
+    boolean dismissed = false;
 
     public void onDismiss(DialogInterface dialog)
     {
+        super.onDismiss(dialog);
         DeviceListFragment parent =  (DeviceListFragment) getParentFragment();
+        dismissed = true;
         parent.handleDialogClose(dialog);
     }
 
@@ -37,6 +41,7 @@ public class APDialogFragment extends DialogFragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
         // Inflate the layout to use as dialog or embedded fragment
         View out = inflater.inflate(R.layout.dialog_ap_qr, container, false);
 
@@ -44,9 +49,9 @@ public class APDialogFragment extends DialogFragment {
 
         dialog_image.setImageBitmap(m_img);//Setting generated QR code to imageView
 
-        TextView  ssid_view = (TextView) out.findViewById(R.id.ap_ssid);
+        TextView  ssid_view = out.findViewById(R.id.ap_ssid);
         ssid_view.setText(m_ssid);
-        TextView  pass_view = (TextView) out.findViewById(R.id.ap_pass);
+        TextView  pass_view = out.findViewById(R.id.ap_pass);
         pass_view.setText(m_pass);
         return out;
     }

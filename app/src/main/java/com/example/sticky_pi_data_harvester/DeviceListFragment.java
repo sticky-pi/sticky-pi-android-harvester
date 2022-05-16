@@ -24,6 +24,7 @@ import android.view.ViewGroup;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -54,8 +55,10 @@ public class DeviceListFragment extends Fragment {
     WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
     public void handleDialogClose(DialogInterface dialog){
+
         ImageView imageCode = getActivity().findViewById(R.id.local_only_ap_qr);
-        imageCode.setImageAlpha(255);
+        if(imageCode != null)
+            imageCode.setImageAlpha(255);
        };//or whatever args you want
 
     private class LocationUpdateReceiver extends BroadcastReceiver {
@@ -109,12 +112,11 @@ public class DeviceListFragment extends Fragment {
 
 
     private void generate_local_only_qr(){
-
         MainActivity main_activity = (MainActivity) getActivity();
-
         ImageView imageCode = main_activity.findViewById(R.id.local_only_ap_qr);
         // this should also work in localonly hotspo is on the 2.4ghz band
-        if(! wifiManager.isWifiEnabled()) {
+
+        if(! wifiManager.isWifiEnabled() && local_only_ssid != null && local_only_pass != null) {
 
             String qr_code = "WIFI:S:" + local_only_ssid + ";T:WPA;P:" + local_only_pass + ";;F:1;";
 
@@ -132,6 +134,8 @@ public class DeviceListFragment extends Fragment {
 
                 imageCode.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
+                        Log.e("todel", "clieck on dial");
+                        Log.e(TAG, "ssid: " + local_only_ssid + "; pass: "+ local_only_pass);
                         APDialogFragment ap_dial_frag = new APDialogFragment(local_only_ssid, local_only_pass, mBitmap);
                         imageCode.setImageAlpha(0);
                         ap_dial_frag.show(getChildFragmentManager(), "ap");
@@ -142,14 +146,23 @@ public class DeviceListFragment extends Fragment {
             }
         }
         else{
-            imageCode.setImageDrawable(getResources().getDrawable(R.drawable.deactivate_wifi));
-            Log.e(TAG, "Wifi enabled. Might not be able to start access point!");
-            // support for turning wifi off from app is deprecated!
-            imageCode.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    Intent gpsOptionsIntent = new Intent(  android.provider.Settings.ACTION_WIFI_SETTINGS);
-                    startActivityForResult(gpsOptionsIntent,0);
-                }});
+            if(local_only_ssid == null  || local_only_pass == null){
+
+                Log.e(TAG, "Localonly wifi not set up properly!");
+                imageCode.setImageDrawable(getResources().getDrawable(R.drawable.deactivate_wifi));
+            }
+            else {
+                imageCode.setImageDrawable(getResources().getDrawable(R.drawable.deactivate_wifi));
+                Log.e(TAG, "Wifi enabled. Might not be able to start access point!");
+                // support for turning wifi off from app is deprecated!
+                imageCode.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) {
+
+                        Intent intent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+                        startActivityForResult(intent, 0);
+                    }
+                });
+            }
         }
 
     }
@@ -186,14 +199,16 @@ public class DeviceListFragment extends Fragment {
             @Override
             public void onStopped() {
                 super.onStopped();
-                Log.e("DANG", "Local Hotspot Stopped");
+                Log.e(TAG, "Local Hotspot Stopped");
             }
 
             @Override
             public void onFailed(int reason) {
                 super.onFailed(reason);
+                Log.e(TAG, "Local Hotspot failed to start. Reason: " + reason);
+                Toast.makeText(parent_activity, "Issue with hotspot! Turn airplane mode off and on!",
+                                Toast.LENGTH_LONG).show();
                 generate_local_only_qr();
-                Log.e("DANG", "Local Hotspot failed to start");
             }
         }, new Handler());
         } catch(java.lang.IllegalStateException e){
@@ -242,7 +257,6 @@ public class DeviceListFragment extends Fragment {
         device_adapter = new DeviceAdapter(this.getContext(), parent_activity);
 
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
-
 
         gridView.setAdapter(device_adapter);
         mUpdateTimeTask.run();

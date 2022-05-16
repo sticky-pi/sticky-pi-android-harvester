@@ -15,6 +15,7 @@
             android:id="@+id/action_FirstFragment_to_SecondFragment"
             app:destination="@id/ImagesFragment" />
     </fragment>
+
     <fragment
         android:id="@+id/ImagesFragment"
         android:name="com.example.sticky_pi_data_harvester.FileFragment"
@@ -25,4 +26,13 @@
             android:id="@+id/action_SecondFragment_to_FirstFragment"
             app:destination="@id/DeviceListFragment" />
     </fragment>
+
+    <fragment
+        android:id="@+id/PreferenceFragment"
+        android:name="com.example.sticky_pi_data_harvester.PreferenceFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_preference" >
+
+    </fragment>
+
 </navigation>
