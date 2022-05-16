@@ -14,6 +14,7 @@ import de.codecrafters.tableview.toolkit.SortStateViewProviders;
 public class FileSortableTable extends SortableTableView<FileHandler> {
 
     public FileSortableTable(final Context context) {
+
         this(context, null);
     }
 
@@ -25,7 +26,7 @@ public class FileSortableTable extends SortableTableView<FileHandler> {
         super(context, attributes, styleAttributes);
 
         final SimpleTableHeaderAdapter simpleTableHeaderAdapter = new SimpleTableHeaderAdapter(context, "Device", "N images", "% Uploaded", "GB used");
-//        simpleTableHeaderAdapter.setTextColor(ContextCompat.getColor(context, R.color.table_header_text));
+        //simpleTableHeaderAdapter.setTextColor(ContextCompat.getColor(context, R.color.table_header_text));
         setHeaderAdapter(simpleTableHeaderAdapter);
 
 //        final int rowColorEven = ContextCompat.getColor(context, R.color.table_data_row_even);
@@ -41,9 +42,10 @@ public class FileSortableTable extends SortableTableView<FileHandler> {
 //        tableColumnWeightModel.setColumnWeight(3, 2);
         setColumnModel(tableColumnWeightModel);
 
-//        setColumnComparator(0, CarComparators.getCarProducerComparator());
-//        setColumnComparator(1, CarComparators.getCarNameComparator());
-//        setColumnComparator(2, CarComparators.getCarPowerComparator());
+        setColumnComparator(0, FileComparators.getDeviceIDComparator());
+        setColumnComparator(1, FileComparators.getNofImagesComparator());
+        setColumnComparator(2, FileComparators.getPercentUploadedComparator());
     }
+
 
 }
