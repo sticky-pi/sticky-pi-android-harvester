@@ -31,7 +31,7 @@ public class APDialogFragment extends DialogFragment {
         parent.handleDialogClose(dialog);
     }
 
-    public  APDialogFragment(String ssid, String pass, Bitmap img){
+    public  APDialogFragment(String ssid, String pass, Bitmap img) {
         super();
         m_ssid = ssid;
         m_pass = pass;

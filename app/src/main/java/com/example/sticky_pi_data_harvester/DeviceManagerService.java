@@ -47,6 +47,10 @@ public class DeviceManagerService extends Service {
     Context gps_context;
     File storage_dir = null;
 
+
+    public Location get_location() {
+        return location;
+    }
     MyBinder binder = new MyBinder();
 
     public class MyBinder extends Binder {
@@ -91,10 +95,6 @@ public class DeviceManagerService extends Service {
         }
     }
 
-    public Location get_location() {
-        return location;
-    }
-
     public void initializeDiscoveryListener() {
         spiDiscoveryListener = new NsdManager.DiscoveryListener() {
             @Override
@@ -102,17 +102,14 @@ public class DeviceManagerService extends Service {
                 Log.e(TAG, "Discovery FAILED");
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onDiscoveryStarted(String serviceType) {
                 Log.w(TAG, "Discovery started");
             }
-
             @Override
             public void onDiscoveryStopped(String serviceType) {
                 Log.w(TAG, "Discovery Stopped");
@@ -211,9 +208,11 @@ public class DeviceManagerService extends Service {
 
     @Override
     public void onCreate() {
+
         storage_dir = getApplicationContext().getExternalFilesDir(null);
         initializeLocationListener();
         initialise_device_table();
+
 
         gps_context = this;
         mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
@@ -233,6 +232,7 @@ public class DeviceManagerService extends Service {
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
         Log.e("TODEL", "service created");
     }
+
 
 
     @Override

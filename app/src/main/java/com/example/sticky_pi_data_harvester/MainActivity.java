@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("activity", "onCreate"); // Placeholder for debug
         super.onCreate(savedInstanceState);
         requestLocationPermission();
 
@@ -127,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
+
         Intent service_intent_fm = new Intent(this, FileManagerService.class);
         bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
 
@@ -135,11 +137,12 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+
     }
     @Override
     protected void onStart() {
+        Log.d("activity", "onStart"); // Placeholder for debug
         super.onStart();
-
     }
 
     @Override
@@ -151,17 +154,26 @@ public class MainActivity extends AppCompatActivity {
         file_manager_service_bound = false;
     }
 
-
     @Override
     public void onResume() {
+        Log.d("activity", "onResume"); // Placeholder for debug
         super.onResume();
     }
 
     @Override
     public void onPause() {
+        Log.d("activity", "onPause"); // Placeholder for debug
         super.onPause();
-        }
+    }
 
+
+    @Override
+    protected void onStop() {
+        Log.d("activity", "onStop"); // Placeholder for debug
+        super.onStop();
+
+    }
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
