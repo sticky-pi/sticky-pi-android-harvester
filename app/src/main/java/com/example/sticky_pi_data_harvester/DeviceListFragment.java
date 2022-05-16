@@ -127,7 +127,7 @@ public class DeviceListFragment extends Fragment {
 
             try {
                 //BitMatrix class to encode entered text and set Width & Height
-                BitMatrix mMatrix = mWriter.encode(qr_code, BarcodeFormat.QR_CODE, 100, 100);
+                BitMatrix mMatrix = mWriter.encode(qr_code, BarcodeFormat.QR_CODE, 512, 512);
                 BarcodeEncoder mEncoder = new BarcodeEncoder();
                 Bitmap mBitmap = mEncoder.createBitmap(mMatrix);//creating bitmap of code
                 imageCode.setImageBitmap(mBitmap);//Setting generated QR code to imageView

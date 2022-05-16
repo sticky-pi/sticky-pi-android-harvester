@@ -39,6 +39,13 @@ public class APDialogFragment extends DialogFragment {
     }
 
     @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light);
+    }
+
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
@@ -53,6 +60,7 @@ public class APDialogFragment extends DialogFragment {
         ssid_view.setText(m_ssid);
         TextView  pass_view = out.findViewById(R.id.ap_pass);
         pass_view.setText(m_pass);
+        //TODO SET BRIGHTNESS TO HIGHHHHHHHHH
         return out;
     }
 
