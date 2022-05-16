@@ -1,11 +1,10 @@
 package com.example.sticky_pi_data_harvester;
 
-import android.util.Log;
-
 import java.io.File;
 import java.io.FilenameFilter;
 
 public class FileHandler extends Thread{
+    long last_img_seen;
     String m_directory;
     String device_id;
     int n_jpg_images = 0;
@@ -18,9 +17,14 @@ public class FileHandler extends Thread{
         //fixme, set an observer to reindex/update on update
         device_id = new File(m_directory).getName();
         index_files();
+
+        // this is a stub only
+        last_img_seen = 0;
+
     }
 
     String get_device_id(){return device_id;}
+    long get_last_seen(){return last_img_seen;}
     int get_n_jpg_images(){return n_jpg_images;}
     int get_n_trace_images(){return n_trace_images;}
     long get_disk_use(){

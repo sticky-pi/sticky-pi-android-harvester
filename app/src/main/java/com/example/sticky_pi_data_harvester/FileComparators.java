@@ -22,6 +22,10 @@ public class FileComparators {
         return new PercentUploadedComparator();
     }
 
+    public static Comparator<FileHandler> getLastSeenComparator() {
+        return new LastSeenComparator();
+    }
+
     private static class DeviceIDComparator implements Comparator<FileHandler> {
         @Override
         public int compare(FileHandler f1, FileHandler f2) {
@@ -45,4 +49,10 @@ public class FileComparators {
             }
         }
 
+    private static class LastSeenComparator implements Comparator<FileHandler> {
+        @Override
+        public int compare(FileHandler f1, FileHandler f2) {
+            return 0;
+        }
+    }
 }
