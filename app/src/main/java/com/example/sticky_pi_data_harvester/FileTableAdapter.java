@@ -40,6 +40,10 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
             case 3:
                 renderedView = renderString(String.valueOf(fh.get_disk_use() / (1024 * 1024)));
                 break;
+
+            case 4:
+                renderedView = renderString(String.valueOf(fh.get_last_seen()));
+                break;
         }
 
         return renderedView;
