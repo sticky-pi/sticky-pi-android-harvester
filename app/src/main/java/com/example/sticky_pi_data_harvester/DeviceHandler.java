@@ -387,7 +387,7 @@ public class DeviceHandler extends Thread {
                 String hash = out.getString(k);
                 String filename = device_id + "." + k + ".jpg";
                 String day_str = k.split("_")[0] ;
-                URL image_url = null;
+                final URL image_url;
 
                 if(version.compareTo("3.0.1") >= 0)
                     image_url = new URL("http", host_address, port, "static/"  + device_id +  "/" + day_str + "/"+ filename);
