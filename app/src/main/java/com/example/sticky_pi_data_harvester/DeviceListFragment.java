@@ -13,6 +13,7 @@ import android.graphics.Bitmap;
 import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,6 +39,8 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Locale;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -46,7 +49,7 @@ public class DeviceListFragment extends Fragment {
 
     private FragmentDeviceListBinding binding;
     private Handler mHandler = new Handler();
-    MainActivity parent_activity;
+//    MainActivity parent_activity;
     DeviceAdapter device_adapter;
 
     BroadcastReceiver wifi_state_receiver;
@@ -64,10 +67,12 @@ public class DeviceListFragment extends Fragment {
     private class LocationUpdateReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(DeviceManagerService.UPDATE_LOCATION_INTENT) && parent_activity.device_manager_service != null) {
-                TextView location_textview = (TextView) parent_activity.findViewById(R.id.location_text_view);
+
+            MainActivity main_activity = (MainActivity) getActivity();
+            if (intent.getAction().equals(DeviceManagerService.UPDATE_LOCATION_INTENT) && main_activity.device_manager_service != null) {
+                TextView location_textview = (TextView) main_activity.findViewById(R.id.location_text_view);
                 String text = "";
-                Location location = parent_activity.device_manager_service.get_location();
+                Location location = main_activity.device_manager_service.get_location();
                 if(location != null) {
                     text += String.format("%+013.8f", location.getLatitude()) + "\n" +
                             String.format("%+013.8f", location.getLongitude()) + "\n" +
@@ -167,7 +172,28 @@ public class DeviceListFragment extends Fragment {
 
     }
 
+    public void get_hostspot_name(){
 
+        MainActivity main_activity = (MainActivity) getActivity();
+        wifiManager = (WifiManager) main_activity.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        Method[] methods = wifiManager.getClass().getDeclaredMethods();
+        for (Method m: methods) {
+            if (m.getName().equals("getWifiApConfiguration")) {
+                WifiConfiguration config = null;
+                try {
+                    config = (WifiConfiguration)m.invoke(wifiManager);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+                if (config != null) {
+                    String ssid = config.SSID;
+                    String bssid = config.BSSID;
+                }
+            }
+        }
+    }
 
     @AfterPermissionGranted(MY_PERMISSIONS_REQUEST_LOCATION)
     public void turnOnHotspot() {
@@ -176,10 +202,12 @@ public class DeviceListFragment extends Fragment {
             hotspotReservation.close();
             hotspotReservation = null;
         }
-
-        wifiManager = (WifiManager) parent_activity.getSystemService(Context.WIFI_SERVICE);
+        get_hostspot_name();
+//        wifiManager = (WifiManager) parent_activity.getSystemService(Context.WIFI_SERVICE);
 
         MainActivity main_activity = (MainActivity) getActivity();
+
+
         if (ActivityCompat.checkSelfPermission(main_activity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
@@ -206,7 +234,7 @@ public class DeviceListFragment extends Fragment {
             public void onFailed(int reason) {
                 super.onFailed(reason);
                 Log.e(TAG, "Local Hotspot failed to start. Reason: " + reason);
-                Toast.makeText(parent_activity, "Issue with hotspot! Turn airplane mode off and on!",
+                Toast.makeText(main_activity, "Issue with hotspot! Turn airplane mode off and on!",
                                 Toast.LENGTH_LONG).show();
                 generate_local_only_qr();
             }
@@ -221,20 +249,21 @@ public class DeviceListFragment extends Fragment {
 
         super.onResume();
 
+        MainActivity main_activity = (MainActivity) getActivity();
         if (location_update_receiver == null)
             location_update_receiver = new LocationUpdateReceiver();
         IntentFilter intentFilter = new IntentFilter(DeviceManagerService.UPDATE_LOCATION_INTENT);
-        parent_activity.registerReceiver(location_update_receiver, intentFilter);
-        location_update_receiver.onReceive( parent_activity, new Intent(DeviceManagerService.UPDATE_LOCATION_INTENT));
+        main_activity.registerReceiver(location_update_receiver, intentFilter);
+        location_update_receiver.onReceive( main_activity, new Intent(DeviceManagerService.UPDATE_LOCATION_INTENT));
 
-        wifi_state_receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                turnOnHotspot();
-
-            }
+        if (wifi_state_receiver == null)
+            wifi_state_receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    turnOnHotspot();}
         };
-        parent_activity.registerReceiver(wifi_state_receiver, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
+
+        main_activity.registerReceiver(wifi_state_receiver, new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION));
         turnOnHotspot();
 
 
@@ -242,8 +271,10 @@ public class DeviceListFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        if (location_update_receiver != null) parent_activity.unregisterReceiver(location_update_receiver);
-        if (wifi_state_receiver != null) parent_activity.unregisterReceiver(wifi_state_receiver);
+
+        MainActivity main_activity = (MainActivity) getActivity();
+        if (location_update_receiver != null) main_activity.unregisterReceiver(location_update_receiver);
+        if (wifi_state_receiver != null) main_activity.unregisterReceiver(wifi_state_receiver);
     }
 
     @Override
@@ -251,9 +282,11 @@ public class DeviceListFragment extends Fragment {
             @NonNull LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
 
+
+        MainActivity main_activity = (MainActivity) getActivity();
         binding = FragmentDeviceListBinding.inflate(inflater, container, false);
-        parent_activity = (MainActivity) getActivity();
-        device_adapter = new DeviceAdapter(this.getContext(), parent_activity);
+        main_activity = (MainActivity) getActivity();
+        device_adapter = new DeviceAdapter(this.getContext(), main_activity);
 
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
 

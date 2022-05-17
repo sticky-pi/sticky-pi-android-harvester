@@ -91,7 +91,7 @@ public class FileManagerService extends Service {
 
     private void update_network_status(){
 
-        has_internet = is_domain_up("8.8.8.8");
+        has_internet = is_domain_up("google.com");
         Log.e("TODEL", "has_internet: " + has_internet);
         is_host_up = is_domain_up(api_host);
         Log.e("TODEL", "is_host_up: " + is_host_up);
