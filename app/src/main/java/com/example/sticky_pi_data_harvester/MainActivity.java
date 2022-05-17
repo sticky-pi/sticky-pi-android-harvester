@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             device_manager_service_bound = false;
+            device_manager_service = null;
         }
     };
 
@@ -79,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             file_manager_service_bound = false;
-
+            file_manager_service = null;
             Log.e("TODEL", "file disconnected");
         }
     };
@@ -129,29 +130,45 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
 
-        Intent service_intent_fm = new Intent(this, FileManagerService.class);
-        bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
-
-        Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
-        bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
+        if(!device_manager_service_bound) {
+            Intent service_intent_fm = new Intent(this, FileManagerService.class);
+            getApplicationContext().bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
+            Log.d("activity", "binding device manager"); // Placeholder for debug
+        }
+        if(!file_manager_service_bound) {
+            Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
+            getApplicationContext().bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
+            Log.d("activity", "binding file manager"); // Placeholder for debug
+        }
 
     }
     @Override
     protected void onStart() {
         Log.d("activity", "onStart"); // Placeholder for debug
         super.onStart();
+
+
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unbindService(device_manager_service_connection);
-        device_manager_service_bound = false;
-        unbindService(file_manager_service_connection);
-        file_manager_service_bound = false;
+        Log.d("activity", "onDestroy"); // Placeholder for debug
+
+        if(device_manager_service_bound) {
+            getApplicationContext().unbindService(device_manager_service_connection);
+            device_manager_service_bound = false;
+            device_manager_service = null;
+        }
+
+        if(file_manager_service_bound) {
+            getApplicationContext().unbindService(file_manager_service_connection);
+            file_manager_service_bound = false;
+            file_manager_service = null;
+        }
+
     }
 
     @Override
@@ -170,6 +187,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         Log.d("activity", "onStop"); // Placeholder for debug
+
         super.onStop();
 
     }

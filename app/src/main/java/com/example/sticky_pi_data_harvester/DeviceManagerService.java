@@ -208,7 +208,6 @@ public class DeviceManagerService extends Service {
 
     @Override
     public void onCreate() {
-
         storage_dir = getApplicationContext().getExternalFilesDir(null);
         initializeLocationListener();
         initialise_device_table();
@@ -241,8 +240,14 @@ public class DeviceManagerService extends Service {
     }
 
     @Override
+    public boolean onUnbind(Intent intent) {
+        Log.d("TODEL", "unbinding device manager");
+        stopSelf();
+        return false;
+    }
+
+    @Override
     public int onStartCommand(Intent intent, int flag, int start_id) {
         return Service.START_STICKY;
     }
-
 }

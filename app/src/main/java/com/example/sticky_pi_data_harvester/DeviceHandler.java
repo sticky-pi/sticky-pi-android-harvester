@@ -107,8 +107,6 @@ public class DeviceHandler extends Thread {
         last_pace = Instant.now().getEpochSecond();
         //fixme CHECK permissions/ presence of sd card
         target_dir =  storage_dir + "/" + device_id;
-        //fixme delettttttttttttttttttttttttttte
-        delete_local_files();
     }
 
 
@@ -383,11 +381,18 @@ public class DeviceHandler extends Thread {
             ThreadPoolExecutor executor =
                     (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
             it = out.keys();
+
             while (it.hasNext()){
                 String k = it.next();
                 String hash = out.getString(k);
                 String filename = device_id + "." + k + ".jpg";
-                URL image_url = new URL("http", host_address, port, "static/" + filename);
+                String day_str = k.split("_")[0] ;
+                URL image_url = null;
+
+                if(version.compareTo("3.0.1") >= 0)
+                    image_url = new URL("http", host_address, port, "static/"  + device_id +  "/" + day_str + "/"+ filename);
+                else
+                    image_url = new URL("http", host_address, port, "static/"  + device_id  + "/"+ filename);
 
 
                 executor.submit( () -> {
@@ -551,6 +556,11 @@ public class DeviceHandler extends Thread {
 
                 if (! get_metadata())
                     continue;
+
+                // delete local files on mock devices
+                if(is_mock)
+                    delete_local_files();
+
                 write_persistent_device_status();
                 if (! get_log())
                     continue;
