@@ -6,6 +6,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -263,6 +265,34 @@ public class DeviceHandler extends Thread {
         }
 
         final String tmp_path  = path + ".tmp";
+
+        File trace = new File(path + ".trace");
+        if(trace.exists()){
+            BufferedReader reader = null;
+            try {
+                reader = new BufferedReader(new FileReader(trace));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            String trace_hash = null;
+            try {
+                trace_hash = reader.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(!Objects.equals(trace_hash, hash)){
+
+                if(trace.delete()) {
+                    Log.e(TAG, "Local trace" + trace.getName() + " has a different hash than device hash. Trace deleted!");
+                }
+                // todo remove trace
+            }
+            else {
+                Log.i(TAG, "Skipping trace image: " + trace.getName());
+                return true;
+            }
+
+        }
 
         if (new File(path).exists()){
             if(compute_hash(path).equals(hash)){
