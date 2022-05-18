@@ -3,12 +3,17 @@ package com.example.sticky_pi_data_harvester;
 import android.content.Context;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 
 import java.lang.reflect.Field;
 import java.time.Instant;
@@ -25,14 +30,16 @@ public class DeviceAdapter extends BaseAdapter {
     MainActivity main_activity;
     private LayoutInflater layoutInflater;
     private Context context;
+    private DeviceListFragment m_parentFragment;
 
     public Hashtable<String, DeviceHandler> get_device_dict() {
         return main_activity.get_device_dict();
     }
-    public DeviceAdapter(Context aContext,  MainActivity mainActivity) {
+    public DeviceAdapter(Context aContext,  MainActivity mainActivity, DeviceListFragment parentFragment) {
         this.context = aContext;
         main_activity = mainActivity;
         layoutInflater = LayoutInflater.from(aContext);
+        m_parentFragment = parentFragment;
     }
 
 
@@ -104,6 +111,9 @@ public class DeviceAdapter extends BaseAdapter {
 
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
+        DeviceHandler device_handler = this.get_device_dict().get(position_to_key(position));
+        assert device_handler != null;
+
         if (convertView == null) {
             convertView = layoutInflater.inflate(R.layout.grid_item_layout, null);
             holder = new ViewHolder();
@@ -114,12 +124,27 @@ public class DeviceAdapter extends BaseAdapter {
                 holder.last_pace = (TextView) convertView.findViewById(R.id.last_pace);
                 holder.available_disk_space = (TextView) convertView.findViewById(R.id.text_view_available_disk_space);
                 holder.rectangle = (View) convertView.findViewById(R.id.myRectangleView);
+
+                //
+                holder.rectangle.setClickable(true);
+                holder.rectangle.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        Log.i("info", "clicked");
+                        Bundle bundle = new Bundle();
+                        // First string means the key to retrieve the second string
+                        bundle.putString("a", device_handler.get_device_id());
+                        NavHostFragment.findNavController(m_parentFragment)
+                                .navigate(R.id.action_DeviceFragment_to_DetailFragment, bundle);
+                    }
+                });
+                //
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
 
-        DeviceHandler device_handler = this.get_device_dict().get(position_to_key(position));
+
 
         if(device_handler.get_is_ghost()){
             holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
@@ -127,8 +152,6 @@ public class DeviceAdapter extends BaseAdapter {
         else {
             holder.rectangle.setBackgroundResource(R.drawable.rectangle);
         }
-
-        assert device_handler != null;
 
         holder.device_id.setText(device_handler.get_device_id());
         //fixme ifelse status is not starting:

@@ -134,6 +134,21 @@ public class FileFragment extends Fragment {
 
             Log.e("adapter", "OK");
             tableView.setDataAdapter(adapter);
+
+            // Failing clickable table
+//            tableView.setClickable(true);
+//            tableView.setOnClickListener(new View.OnClickListener() {
+//                @Override
+//                public void onClick(View view) {
+//                    Log.i("info", "clicked");
+//
+//                    Bundle bundle = new Bundle();
+//                    // First string means the key to retrieve the second string
+//                    bundle.putString("a", binding.getRoot().findViewById(R.id.device_id).toString());
+//                    NavHostFragment.findNavController(FileFragment.this)
+//                            .navigate(R.id.action_DeviceFragment_to_DetailFragment, bundle);
+//                }
+//            });
 //            tableView.addDataClickListener(new CarClickListener());
 //            tableView.addDataLongClickListener(new CarLongClickListener());
 //            carTableView.setSwipeToRefreshEnabled(true);

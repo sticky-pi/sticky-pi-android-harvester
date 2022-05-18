@@ -1,7 +1,15 @@
 package com.example.sticky_pi_data_harvester;
 
+import android.util.Log;
+
 import java.io.File;
 import java.io.FilenameFilter;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FileHandler extends Thread{
     long last_img_seen;
@@ -9,6 +17,7 @@ public class FileHandler extends Thread{
     String device_id;
     int n_jpg_images = 0;
     int n_trace_images = 0;
+    // private DeviceHandler devH = new DeviceHandler();
 
 
     FileHandler(String directory){
@@ -19,7 +28,7 @@ public class FileHandler extends Thread{
         index_files();
 
         // this is a stub only
-        last_img_seen = 0;
+        // last_img_seen = devH.time_created;
 
     }
 
@@ -35,7 +44,11 @@ public class FileHandler extends Thread{
     void index_files(){
         int tmp_n_jpg_images = 0;
         int tmp_n_trace_images = 0;
+        long most_recent_seen = 0;
+
        File directory = new File(m_directory);
+       List<File> imgs = new ArrayList<>();
+
        File[] images = directory.listFiles(new FilenameFilter() {
                                          @Override
                                          public boolean accept(File dir, String name) {
@@ -48,15 +61,40 @@ public class FileHandler extends Thread{
            for (File img : images){
                if(img.getName().endsWith(".jpg")){
                    tmp_n_jpg_images +=1;
+                   long latest_seen = parse_date(img.getName());
+                   if (latest_seen > most_recent_seen) {
+                       most_recent_seen = latest_seen;
+                   }
+
                }
                if(img.getName().endsWith(".trace")){
                    tmp_n_trace_images +=1;
                }
+
+
            }
        }
         n_jpg_images = tmp_n_jpg_images;
         n_trace_images = tmp_n_trace_images;
+        last_img_seen = most_recent_seen;
     }
+
+    // Adds on here to get updated parsed date of img name
+    private long parse_date(String name) {
+        long timeInSeconds = 0;
+        String[] arrSplit = name.split("\\.");
+        if (arrSplit.length > 2) {
+            String date = arrSplit[1];
+            LocalDateTime ldt = LocalDateTime.parse(date,
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            timeInSeconds = ldt.toEpochSecond(ZoneOffset.UTC);
+        }
+
+
+        return timeInSeconds;
+    }
+
+
     @Override
     public void run() {
         while (true){

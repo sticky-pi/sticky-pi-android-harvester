@@ -38,12 +38,12 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
 
 public class DeviceListFragment extends Fragment {
-
     private FragmentDeviceListBinding binding;
     private Handler mHandler = new Handler();
     MainActivity parent_activity;
@@ -253,7 +253,7 @@ public class DeviceListFragment extends Fragment {
 
         binding = FragmentDeviceListBinding.inflate(inflater, container, false);
         parent_activity = (MainActivity) getActivity();
-        device_adapter = new DeviceAdapter(this.getContext(), parent_activity);
+        device_adapter = new DeviceAdapter(this.getContext(), parent_activity, this);
 
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
 

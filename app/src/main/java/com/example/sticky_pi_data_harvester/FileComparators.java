@@ -52,6 +52,13 @@ public class FileComparators {
     private static class LastSeenComparator implements Comparator<FileHandler> {
         @Override
         public int compare(FileHandler f1, FileHandler f2) {
+            long f1_time = f1.get_last_seen();
+            long f2_time = f2.get_last_seen();
+            if (f1_time < f2_time) {
+                return -1;
+            } else if(f1_time > f2_time) {
+                return 1;
+            }
             return 0;
         }
     }
