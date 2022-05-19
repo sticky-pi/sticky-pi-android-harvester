@@ -83,7 +83,7 @@ public class FileFragment extends Fragment {
                 TextView network_status_text = main_activity.findViewById(R.id.network_status);
                 if(network_status_text != null) {
                     String status = "";
-                    if(file_manager_service.get_api_host().equals("") || file_manager_service.get_user_name().equals("")){
+                    if(file_manager_service.get_api_client().get_api_host().equals("") || file_manager_service.get_api_client().get_user_name().equals("")){
                         network_status_text.setText("You need a host and a user name/.\nCheck your settings!");
                     }
 
@@ -91,14 +91,14 @@ public class FileFragment extends Fragment {
                         network_status_text.setText("No internet");
                     }
                     else if(!file_manager_service.is_host_up){
-                        network_status_text.setText("Internet, but cannot reach\n"+ file_manager_service.get_api_host() );
+                        network_status_text.setText("Internet, but cannot reach\n"+ file_manager_service.get_api_client().get_api_host() );
                     }
 
                     else if(!file_manager_service.are_credentials_valid){
-                        network_status_text.setText("Can reach host,\nbut authentication as `" + file_manager_service.get_user_name()+ "` fails!\nCheck password");
+                        network_status_text.setText("Can reach host,\nbut authentication as `" + file_manager_service.get_api_client().get_user_name()+ "` fails!\nCheck password");
                     }
                     else{
-                        network_status_text.setText("Connected to \n"+ file_manager_service.get_api_host());
+                        network_status_text.setText("Connected to \n"+ file_manager_service.get_api_client().get_api_host());
                     }
 
 

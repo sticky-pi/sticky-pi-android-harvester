@@ -8,9 +8,24 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
+import android.util.Base64;
 import android.util.Log;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -22,33 +37,26 @@ public class FileManagerService extends Service {
     ArrayList<FileHandler> file_handler_list = new ArrayList<FileHandler>();
     File storage_dir = null;
 
-    private String api_host = "";
-    private String user_name = "";
-    private String password = "";
-
-
-    public String get_api_host() {
-        return api_host;
-    }
-
-    public String get_user_name() {
-        return user_name;
-    }
+    APIClient api_client;
 
 
     boolean has_internet = false;
+
     boolean is_host_up = false;
     boolean are_credentials_valid = false;
-    boolean has_write_access = false;
-
+//    boolean has_write_access = false;
     MyBinder binder = new MyBinder();
-    public class MyBinder extends Binder {
 
+    public class MyBinder extends Binder {
         public FileManagerService getService() {
             return FileManagerService.this;
         }}
 
     ArrayList<FileHandler> get_file_handler_list(){return file_handler_list;}
+
+    public APIClient get_api_client() {
+        return api_client;
+    }
 
 
     private boolean is_device_handled(String device_id){
@@ -71,7 +79,7 @@ public class FileManagerService extends Service {
         for (File dir : device_dirs) {
             if(dir.isDirectory()){
                 if(! is_device_handled(dir.getName())){
-                    FileHandler file_handler = new FileHandler(dir.getPath());
+                    FileHandler file_handler = new FileHandler(dir.getPath(), api_client);
                     file_handler.start();
                     file_handler_list.add(file_handler);
                 }
@@ -89,20 +97,19 @@ public class FileManagerService extends Service {
         }
     }
 
+
     private void update_network_status(){
 
         has_internet = is_domain_up("google.com");
         Log.e("TODEL", "has_internet: " + has_internet);
-        is_host_up = is_domain_up(api_host);
+        is_host_up = is_domain_up(api_client.get_api_host());
         Log.e("TODEL", "is_host_up: " + is_host_up);
-//        is_host_up = false;
-//        are_credentials_valid = false;
-//        has_write_access = false;
-
+        are_credentials_valid = api_client.get_token();
+        Log.e("TODEL", "are_credentials_valid:  " + are_credentials_valid);
     }
-    private void ping_network(){
 
-    }
+
+
 
 
 
@@ -110,16 +117,29 @@ public class FileManagerService extends Service {
         Updater(){
             super();
         }
+
         @Override
         public void run(){
             while(true){
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
-                api_host =  sharedpreferences.getString("preference_api_host", "");
-                user_name =  sharedpreferences.getString("preference_user_name", "");
-                password =  sharedpreferences.getString("preference_password", "");
+                String api_host =  sharedpreferences.getString("preference_api_host", "");
+                String user_name =  sharedpreferences.getString("preference_user_name", "");
+                String password =  sharedpreferences.getString("preference_password", "");
+                // invalidate client if settings have changed
 
-                update_device_file_table();
+                if (api_client == null){
+                    api_client = new APIClient(api_host, user_name, password);
+                }
+                else if(api_host != api_client.get_api_host() ||
+                        user_name != api_client.get_user_name() ||
+                        password != api_client.get_password()){
+                    api_client =  null;
+                    continue;
+
+                }
                 update_network_status();
+                if (are_credentials_valid && has_internet && is_host_up)
+                    update_device_file_table();
                 try {
                     sleep(10000);
                 } catch (InterruptedException e) {
