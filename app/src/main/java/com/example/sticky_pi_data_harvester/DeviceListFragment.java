@@ -41,12 +41,12 @@ import com.journeyapps.barcodescanner.BarcodeEncoder;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
 
 public class DeviceListFragment extends Fragment {
-
     private FragmentDeviceListBinding binding;
     private Handler mHandler = new Handler();
 //    MainActivity parent_activity;
@@ -285,8 +285,10 @@ public class DeviceListFragment extends Fragment {
 
         MainActivity main_activity = (MainActivity) getActivity();
         binding = FragmentDeviceListBinding.inflate(inflater, container, false);
+
         main_activity = (MainActivity) getActivity();
-        device_adapter = new DeviceAdapter(this.getContext(), main_activity);
+        device_adapter = new DeviceAdapter(this.getContext(), main_activity, this);
+
 
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
 

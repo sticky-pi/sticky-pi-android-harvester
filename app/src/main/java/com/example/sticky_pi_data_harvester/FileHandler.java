@@ -24,6 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 public class FileHandler extends Thread{
@@ -35,6 +40,7 @@ public class FileHandler extends Thread{
     String m_api_host;
     int n_jpg_images = 0;
     int n_trace_images = 0;
+    // private DeviceHandler devH = new DeviceHandler();
 
 
     FileHandler(String directory, APIClient api_client){
@@ -46,6 +52,7 @@ public class FileHandler extends Thread{
         // this is a stub only
         last_img_seen = 0;
         m_api_client = api_client;
+
     }
 
     String get_device_id(){return device_id;}
@@ -60,7 +67,11 @@ public class FileHandler extends Thread{
     void index_files(){
         int tmp_n_jpg_images = 0;
         int tmp_n_trace_images = 0;
+        long most_recent_seen = 0;
+
        File directory = new File(m_directory);
+       List<File> imgs = new ArrayList<>();
+
        File[] images = directory.listFiles(new FilenameFilter() {
                                          @Override
                                          public boolean accept(File dir, String name) {
@@ -73,16 +84,23 @@ public class FileHandler extends Thread{
            for (File img : images){
                if(img.getName().endsWith(".jpg")){
                    tmp_n_jpg_images +=1;
+                   long latest_seen = parse_date(img.getName());
+                   if (latest_seen > most_recent_seen) {
+                       most_recent_seen = latest_seen;
+                   }
+
                }
                if(img.getName().endsWith(".trace")){
                    tmp_n_trace_images +=1;
                }
+
+
            }
        }
         n_jpg_images = tmp_n_jpg_images;
         n_trace_images = tmp_n_trace_images;
+        last_img_seen = most_recent_seen;
     }
-
 
 
     public static String calculateMD5(File updateFile) {
@@ -125,7 +143,7 @@ public class FileHandler extends Thread{
         }
     }
 
-    private void upload_all_jpg(){
+    private void upload_all_jpg() {
         File directory = new File(m_directory);
         File[] images = directory.listFiles(new FilenameFilter() {
                                                 @Override
@@ -141,49 +159,48 @@ public class FileHandler extends Thread{
 
         SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
-        if(images != null){
-            for (File img : images){
+        if (images != null) {
+            for (File img : images) {
                 String fields[] = img.getName().split("\\.");
-                if(fields.length > 2 ){
+                if (fields.length > 2) {
                     try {
                         Date date = date_formatter.parse(fields[1]);
                         image_timestamps.add(date.getTime());
                     } catch (ParseException e) {
-                        Log.e(TAG,"Cannot parse date in: " + img.getName() + " (" + fields[1]+ ")");
+                        Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ")");
                         e.printStackTrace();
                     }
-                }
-                else{
-                    Log.e(TAG,"Unexpected image name: " + img.getName());
+                } else {
+                    Log.e(TAG, "Unexpected image name: " + img.getName());
                 }
             }
         }
 
         Collections.sort(image_timestamps);
-        for(long t: image_timestamps){
+        for (long t : image_timestamps) {
 
-            String date = date_formatter.format(new Date(t ));
+            String date = date_formatter.format(new Date(t));
             String img_path = m_directory + "/" + device_id + "." + date + ".jpg";
             File image = new File(img_path);
             //fixme, here we want some sort of file lock ?!
-            if(! image.isFile()){
+            if (!image.isFile()) {
                 Log.e(TAG, "Cannot find image to upload: " + img_path);
                 continue;
             }
-            String query_str = String.format( "[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
+            String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
             try {
 
                 JSONArray payload = new JSONArray(query_str);
-                JSONArray response = (JSONArray)  m_api_client.api_call((Object) payload, "get_images/metadata");
+                JSONArray response = (JSONArray) m_api_client.api_call((Object) payload, "get_images/metadata");
 //                Log.e("TODEL", response.toString());
                 boolean to_upload = false;
-                if(response.length() == 0){
+                if (response.length() == 0) {
                     to_upload = true;
                 }
 
                 String md5 = calculateMD5(image);
 
-                if(to_upload) {
+                if (to_upload) {
                     List<File> all_images = new ArrayList<>();
                     all_images.add(image);
 //                    JSONArray get_img_resp = (JSONArray) m_api_client.put_images(all_images);
@@ -194,7 +211,19 @@ public class FileHandler extends Thread{
                 e.printStackTrace();
             }
         }
+    }
 
+    // Adds on here to get updated parsed date of img name
+    private long parse_date(String name) {
+        long timeInSeconds = 0;
+        String[] arrSplit = name.split("\\.");
+        if (arrSplit.length > 2) {
+            String date = arrSplit[1];
+            LocalDateTime ldt = LocalDateTime.parse(date,
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            timeInSeconds = ldt.toEpochSecond(ZoneOffset.UTC);
+        }
+        return timeInSeconds;
     }
 
 

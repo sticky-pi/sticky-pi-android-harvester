@@ -5,6 +5,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -42,7 +43,8 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
                 break;
 
             case 4:
-                renderedView = renderString(String.valueOf(fh.get_last_seen()));
+                long deltaT = Instant.now().getEpochSecond() - fh.get_last_seen();
+                renderedView = renderString(secs_to_human_durations(deltaT));
                 break;
         }
 
@@ -55,5 +57,32 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
         textView.setPadding(10, 5, 10, 5);
         textView.setTextSize(TEXT_SIZE);
         return textView;
+    }
+
+    private String secs_to_human_durations(long seconds){
+        String prefix = "";
+        boolean isNegative = seconds < 0;
+        if (isNegative) {
+            prefix = " - ";
+        }
+        seconds = Math.abs(seconds);
+
+        int days = (int) Math.floor(seconds / (3600*24));
+        int hrs   = (int) Math.floor(seconds / 3600);
+        long mins = (long) Math.floor(seconds / 60);
+
+        if(days >= 2){
+            return prefix + days + " d ago";
+        }
+        if(hrs >= 2){
+            return prefix + hrs + " h ago";
+        }
+        if(mins >= 2){
+            return prefix + mins + " min ago";
+        }
+        if(seconds <= 2 ) {
+            return prefix + "now";
+        }
+        return seconds + "s ago";
     }
 }
