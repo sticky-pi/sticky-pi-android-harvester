@@ -17,10 +17,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -35,7 +37,7 @@ public class PreferenceFragment extends Fragment {
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
 
-    public static final  String[] keys = {"preference_api_host", "preference_user_name", "preference_password"};
+    public static final  String[] keys = {"preference_api_host", "preference_user_name", "preference_password", "preference_delete_uploaded_images"};
 
 
     // TODO: Rename and change types of parameters
@@ -90,7 +92,6 @@ public class PreferenceFragment extends Fragment {
     public void onViewCreated(View v, Bundle savedInstanceState){
         super.onViewCreated(v, savedInstanceState);
         MainActivity activity = (MainActivity) getActivity();
-        Log.e("TODEL", "PREF VIEW CREATED");
         activity.invalidateOptionsMenu();
     }
 
@@ -108,9 +109,19 @@ public class PreferenceFragment extends Fragment {
         for(String k: keys){
             if(sharedpreferences.contains(k)){
                 int id = res.getIdentifier(k, "id", getContext().getPackageName());
-                EditText target = (EditText) view.findViewById(id);
-                if(target != null)
-                    target.setText(sharedpreferences.getString(k,""));
+
+                if(!k.equals("preference_delete_uploaded_images")) {
+                    EditText target =  view.findViewById(id);
+                    if(target != null)
+                        target.setText(sharedpreferences.getString(k,""));
+                }
+                else{
+                    CheckBox target = view.findViewById(id);
+                    if (target != null) {
+                        target.setChecked(sharedpreferences.getBoolean(k,false));
+
+                    }
+                }
             }
         }
 
@@ -124,13 +135,20 @@ public class PreferenceFragment extends Fragment {
                 SharedPreferences.Editor editor = sharedpreferences.edit();
                 Resources res = getResources();
                 for(String k: keys){
-                    int id = res.getIdentifier(k, "id", getContext().getPackageName());
-                    EditText target = (EditText) view.findViewById(id);
-                    if(target != null) {
-                        String text = target.getText().toString();
-
-                        if(!text.equals("")) {
-                            editor.putString(k, text);
+                    int id = res.getIdentifier(k, "id", requireContext().getPackageName());
+                    if(!k.equals("preference_delete_uploaded_images")) {
+                        EditText target = view.findViewById(id);
+                        if (target != null) {
+                            String text = target.getText().toString();
+                            if (!text.equals("")) {
+                                editor.putString(k, text);
+                            }
+                        }
+                    }
+                    else {
+                        CheckBox target = view.findViewById(id);
+                        if (target != null) {
+                            editor.putBoolean(k, target.isChecked());
                         }
                     }
                 }

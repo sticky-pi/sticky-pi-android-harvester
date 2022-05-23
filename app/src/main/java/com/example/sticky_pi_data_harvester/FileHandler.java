@@ -8,12 +8,17 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -29,7 +34,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class FileHandler extends Thread{
     static final String TAG = "FileHandler";
@@ -38,66 +47,95 @@ public class FileHandler extends Thread{
     String device_id;
     APIClient m_api_client;
     String m_api_host;
+
     int n_jpg_images = 0;
+    int n_traced_jpg_images = 0;
     int n_trace_images = 0;
+    long disk_used = 0;
+    boolean m_delete_uploaded_images = false;
+
+    SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+
     // private DeviceHandler devH = new DeviceHandler();
 
 
-    FileHandler(String directory, APIClient api_client){
+    FileHandler(String directory, APIClient api_client, boolean delete_uploaded_images){
         super();
         m_directory = directory;
-        //fixme, set an observer to reindex/update on update
+        //todo, set an observer to reindex/update on update
         device_id = new File(m_directory).getName();
         index_files();
         // this is a stub only
         last_img_seen = 0;
         m_api_client = api_client;
-
+        m_delete_uploaded_images = delete_uploaded_images;
     }
 
+    void delete_all_traces() {
+
+        File directory = new File(m_directory);
+        File[] images = directory.listFiles(new FilenameFilter() {
+                                                @Override
+                                                public boolean accept(File dir, String name) {
+                                                    return name.matches("^.*\\.trace$");
+                                                }
+                                            }
+        );
+        if (images != null) {
+            for (File img_or_trace : images) {
+                img_or_trace.delete();
+            }
+        }
+    }
     String get_device_id(){return device_id;}
     long get_last_seen(){return last_img_seen;}
     int get_n_jpg_images(){return n_jpg_images;}
+    int get_n_traced_jpg_images(){return n_traced_jpg_images;}
     int get_n_trace_images(){return n_trace_images;}
     long get_disk_use(){
-        // fixme
-        return 0 ;
+        Log.e("TODEL", device_id + ": " + disk_used);
+        return disk_used ;
     }
 
     void index_files(){
         int tmp_n_jpg_images = 0;
+        int tmp_n_traced_jpg_images = 0;
         int tmp_n_trace_images = 0;
+        long tmp_disk_used = 0;
         long most_recent_seen = 0;
 
-       File directory = new File(m_directory);
-       List<File> imgs = new ArrayList<>();
+        File directory = new File(m_directory);
+        List<File> imgs = new ArrayList<>();
 
-       File[] images = directory.listFiles(new FilenameFilter() {
+        File[] images = directory.listFiles(new FilenameFilter() {
                                          @Override
                                          public boolean accept(File dir, String name) {
-                                             return name.matches("^.*(\\.jpg)|(\\.trace)$");
+                                             return name.matches("^(.*\\.jpg)|(.*\\.trace)$");
                                          }
                                      }
        );
-
        if(images != null){
-           for (File img : images){
-               if(img.getName().endsWith(".jpg")){
+           for (File img_or_trace : images){
+               if(img_or_trace.getName().endsWith(".jpg")){
                    tmp_n_jpg_images +=1;
-                   long latest_seen = parse_date(img.getName());
+                   if(new File(img_or_trace.getPath() + ".trace").isFile()){
+                       tmp_n_traced_jpg_images +=1;
+
+                   }
+                   long latest_seen = parse_date(img_or_trace.getName());
                    if (latest_seen > most_recent_seen) {
                        most_recent_seen = latest_seen;
                    }
-
+                   tmp_disk_used += img_or_trace.length();
                }
-               if(img.getName().endsWith(".trace")){
+               if(img_or_trace.getName().endsWith(".trace")){
                    tmp_n_trace_images +=1;
                }
-
-
            }
        }
+        disk_used = tmp_disk_used;
         n_jpg_images = tmp_n_jpg_images;
+        n_traced_jpg_images = tmp_n_traced_jpg_images;
         n_trace_images = tmp_n_trace_images;
         last_img_seen = most_recent_seen;
     }
@@ -143,6 +181,111 @@ public class FileHandler extends Thread{
         }
     }
 
+    void writeTraceForFile(File trace, File image, String hash, boolean delete_parent){
+        File tmp_file = new File(trace.getPath() + "~");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(tmp_file))) {
+            writer.write(hash+ "\n");
+            writer.flush();
+            writer.close();
+            if(tmp_file.renameTo(trace) && delete_parent){
+                Log.i(TAG, "Successfully written trace file: " +  trace.getPath() +". Deleting parent image: "+ image.getName());
+                if(! image.delete()) {
+                    Log.i(TAG, "Could not delete "+ image.getName());
+                    }
+                new File(image.getPath() + ".thumbnail").delete();
+            }
+
+        } catch (IOException e){
+            Log.e(TAG, "Error writing trace file: " + trace.getPath());
+        }
+
+    }
+
+    private boolean should_delete_parent(){
+        return m_delete_uploaded_images;
+    }
+    private void upload_one_jpg(long timestamp){
+        String date = date_formatter.format(new Date(timestamp));
+        String img_path = m_directory + "/" + device_id + "." + date + ".jpg";
+        String trace_img_path = img_path + ".trace";
+        File image = new File(img_path);
+        File trace = new File(trace_img_path);
+        //todo, here we want some sort of file lock ?!
+        String hash = DeviceHandler.compute_hash(trace_img_path);
+        boolean delete_parent = should_delete_parent();
+
+        if(trace.exists()) {
+            BufferedReader reader = null;
+            try {
+                reader = new BufferedReader(new FileReader(trace));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            String trace_hash = null;
+            try {
+                trace_hash = reader.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(trace_hash.equals(hash)){
+                Log.i(TAG, "Skipping file with valid trace: " + image.getName());
+                if(delete_parent){
+                    image.delete();
+                }
+                return;
+            }
+            else {
+                trace.delete();
+            }
+        }
+
+        if (!image.isFile()) {
+            Log.e(TAG, "Cannot find image to upload: " + img_path);
+            return;
+        }
+        String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
+        try {
+            JSONArray payload = new JSONArray(query_str);
+            JSONArray response = (JSONArray) m_api_client.api_call((Object) payload, "get_images/metadata");
+            boolean to_upload = false;
+            String md5 = calculateMD5(image);
+
+
+            if (response.length() == 0) {
+                to_upload = true;
+            }
+            else {
+                String server_md5;
+                server_md5 = ((JSONObject) response.get(0)).getString("md5");
+                if(!server_md5.equals(md5)){
+                    Log.e(TAG, "Local file with different md5 than same name already on the server: " + image.getName());
+                    to_upload = true;
+                }
+                else {
+                    Log.i(TAG, "Skipping file that exists on server: " + image.getName());
+                    writeTraceForFile(trace, image, hash, delete_parent );
+                }
+            }
+
+
+            if (to_upload) {
+                Log.i(TAG, "Uploading " + image.getName() + " (" + md5 + ")");
+                if(m_api_client.put_image(image, md5)){
+                    writeTraceForFile(trace, image, hash, delete_parent);
+                }
+                else {
+                    Log.e(TAG, "Failed to upload: " + image.getName());
+                }
+
+            }
+
+        } catch (JSONException e) {
+            Log.e(TAG, String.valueOf(e));
+            e.printStackTrace();
+        }
+    }
+
     private void upload_all_jpg() {
         File directory = new File(m_directory);
         File[] images = directory.listFiles(new FilenameFilter() {
@@ -156,8 +299,6 @@ public class FileHandler extends Thread{
         // we get all datetimes and sort by timestamp.
         /// we don't store filenames for memory efficiency
         List<Long> image_timestamps = new ArrayList<Long>();
-
-        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
         if (images != null) {
             for (File img : images) {
@@ -177,40 +318,23 @@ public class FileHandler extends Thread{
         }
 
         Collections.sort(image_timestamps);
+        ThreadPoolExecutor executor =
+                (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
+
         for (long t : image_timestamps) {
+            executor.submit( () -> {
+                upload_one_jpg(t);
 
-            String date = date_formatter.format(new Date(t));
-            String img_path = m_directory + "/" + device_id + "." + date + ".jpg";
-            File image = new File(img_path);
-            //fixme, here we want some sort of file lock ?!
-            if (!image.isFile()) {
-                Log.e(TAG, "Cannot find image to upload: " + img_path);
-                continue;
-            }
-            String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
-            try {
-
-                JSONArray payload = new JSONArray(query_str);
-                JSONArray response = (JSONArray) m_api_client.api_call((Object) payload, "get_images/metadata");
-//                Log.e("TODEL", response.toString());
-                boolean to_upload = false;
-                if (response.length() == 0) {
-                    to_upload = true;
-                }
-
-                String md5 = calculateMD5(image);
-
-                if (to_upload) {
-                    List<File> all_images = new ArrayList<>();
-                    all_images.add(image);
-//                    JSONArray get_img_resp = (JSONArray) m_api_client.put_images(all_images);
-                }
-
-            } catch (JSONException e) {
-                Log.e(TAG, String.valueOf(e));
-                e.printStackTrace();
-            }
+            });
         }
+
+        executor.shutdown();
+        try {
+            executor.awaitTermination(2, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 
     // Adds on here to get updated parsed date of img name
@@ -229,14 +353,14 @@ public class FileHandler extends Thread{
 
     @Override
     public void run() {
-//        while (true){
+        while (true){
             upload_all_jpg();
             try {
-                sleep(1000);
+                sleep(10000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-//        }
+        }
     }
 }
 

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
@@ -40,7 +41,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.os.Environment;
 import android.util.Log;
 
-//fixme does not work when connected to nordvpn app!!
+//todo does not work when connected to nordvpn app!!
 
 
 public class DeviceHandler extends Thread {
@@ -107,7 +108,8 @@ public class DeviceHandler extends Thread {
         location = loc;
         Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
         last_pace = Instant.now().getEpochSecond();
-        //fixme CHECK permissions/ presence of sd card
+
+        //todo CHECK permissions/ presence of sd card
         target_dir =  storage_dir + "/" + device_id;
     }
 
@@ -215,8 +217,24 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_log() {
         try {
-            JSONObject out = readJsonFromUrl(log_url.toString());
-            //fixme write to file!
+            JSONObject json = readJsonFromUrl(log_url.toString());
+            String log = target_dir + "/" + device_id +".log";
+            String tmp_log = log + "~";
+            File tmp_file = new File(tmp_log);
+
+            try (PrintStream out = new PrintStream(new FileOutputStream(tmp_log))) {
+                out.print(json.toString());
+                out.close();
+                boolean success = tmp_file.renameTo(new File(log));
+            }
+            catch (Exception e){
+                Log.e(TAG, String.valueOf(e));
+            }
+            finally {
+                if(tmp_file.isFile()){
+                    boolean _tmp = tmp_file.delete();
+                }
+            }
 
         } catch (IOException | JSONException e) {
             e.printStackTrace();
@@ -247,7 +265,7 @@ public class DeviceHandler extends Thread {
         last_pace = Instant.now().getEpochSecond();
         return true;
     }
-    private String compute_hash(String path){
+    static public String compute_hash(String path){
         try {
             return String.valueOf(Files.size(Paths.get(path )));
         } catch (IOException e) {
@@ -350,7 +368,7 @@ public class DeviceHandler extends Thread {
             File out = new File(path);
             tmp_file.renameTo(out);
 
-            //fixme iff > than previous
+            //todo iff > than previous
             File last_image_file = new File(last_image_path);
             if(last_image_file.getName().compareTo(out.getName()) < 0 )
                 last_image_path = out.getAbsolutePath();
@@ -575,7 +593,7 @@ public class DeviceHandler extends Thread {
     public void run() {
         createDirIfNotExists(target_dir);
 
-        //fixme timeout here
+        //todo timeout here
         while (true){
                 Log.i(TAG, "Running: " + device_id + ", " + host_address + ":"+ port);
                 try {

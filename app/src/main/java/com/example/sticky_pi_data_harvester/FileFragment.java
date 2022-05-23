@@ -61,21 +61,19 @@ public class FileFragment extends Fragment {
                 if(adapter != null) {
                     adapter.notifyDataSetChanged();
                 }
-                else
-                    Log.e("FIXME", "file adapter is NULL!!");
-            }
+             }
 
             finally {
 
-                Log.e("FIXME", "updating");
                 mHandler.postDelayed(this, 5000);
                 update_global_file_summary();
                TextView text = main_activity.findViewById(R.id.global_device_file_info);
                 if(text != null) {
+                    String disk_use_str =  String.format( "%.02f", (double) global_disk_use / (Math.pow(1024, 3)));
                     text.setText(
                             n_global_files + " Local JPG images\n" +
                                     n_global_traces + " Uploaded images\n" +
-                                    global_disk_use + " GB used\n"
+                                    disk_use_str + " GB used\n"
 
                     );
                 }

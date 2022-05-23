@@ -154,7 +154,7 @@ public class DeviceAdapter extends BaseAdapter {
         }
 
         holder.device_id.setText(device_handler.get_device_id());
-        //fixme ifelse status is not starting:
+        //todo ifelse status is not starting:
         String txt =
                 device_handler.get_n_downloaded() + device_handler.get_n_skipped() + "/" + device_handler.get_n_to_download() +
                         "(" + device_handler.get_n_skipped()+ ")";

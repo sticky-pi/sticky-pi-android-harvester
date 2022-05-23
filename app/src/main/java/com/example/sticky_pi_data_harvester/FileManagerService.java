@@ -34,17 +34,18 @@ import java.util.Objects;
 public class FileManagerService extends Service {
     static final String TAG = "StickyPiDataHarvester::FileManagerService";
     Updater updater;
+    final int DEVICE_TABLE_UPDATE_PERIOD = 10; // s
     ArrayList<FileHandler> file_handler_list = new ArrayList<FileHandler>();
     File storage_dir = null;
-
+    boolean delete_uploaded_images = false;
     APIClient api_client;
-
 
     boolean has_internet = false;
 
     boolean is_host_up = false;
     boolean are_credentials_valid = false;
 //    boolean has_write_access = false;
+    long last_device_table_update = 0;
     MyBinder binder = new MyBinder();
 
     public class MyBinder extends Binder {
@@ -65,7 +66,6 @@ public class FileManagerService extends Service {
         }
         for (FileHandler fh: file_handler_list) {
             if(Objects.equals(fh.get_device_id(), device_id)) {
-                Log.i(TAG, "Adding unhandled device: " + device_id);
                 return true;
             }
         }
@@ -79,18 +79,19 @@ public class FileManagerService extends Service {
         for (File dir : device_dirs) {
             if(dir.isDirectory()){
                 if(! is_device_handled(dir.getName())){
-                    FileHandler file_handler = new FileHandler(dir.getPath(), api_client);
+                    FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
                     file_handler.start();
                     file_handler_list.add(file_handler);
                 }
             }
         }
+        last_device_table_update = System.currentTimeMillis() / 1000;
     }
     public boolean is_domain_up(String domain) {
         try {
             InetAddress ipAddr = InetAddress.getByName(domain);
             //You can replace it with your name
-            return !ipAddr.equals("");
+            return !ipAddr.toString().equals("");
 
         } catch (Exception e) {
             return false;
@@ -99,18 +100,9 @@ public class FileManagerService extends Service {
 
 
     private void update_network_status(){
-
         has_internet = is_domain_up("google.com");
-        Log.e("TODEL", "has_internet: " + has_internet);
         is_host_up = is_domain_up(api_client.get_api_host());
-        Log.e("TODEL", "is_host_up: " + is_host_up);
-        are_credentials_valid = api_client.get_token();
-        Log.e("TODEL", "are_credentials_valid:  " + are_credentials_valid);
-    }
-
-
-
-
+        are_credentials_valid = api_client.get_token();}
 
 
     class Updater extends Thread{
@@ -120,28 +112,42 @@ public class FileManagerService extends Service {
 
         @Override
         public void run(){
+            int i = 0;
             while(true){
+                Log.e("TODEL", "Thread updater: "+ i++ + " " + Thread.currentThread());
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
                 String api_host =  sharedpreferences.getString("preference_api_host", "");
                 String user_name =  sharedpreferences.getString("preference_user_name", "");
                 String password =  sharedpreferences.getString("preference_password", "");
-                // invalidate client if settings have changed
+                delete_uploaded_images =  sharedpreferences.getBoolean("preference_delete_uploaded_images", false);
+               
+                // fixed DEV
+//                api_host = "192.168.42.86";
+//                user_name = "test_wr_user";
+//                password = "test";
+//                String protocol= "http";
 
                 if (api_client == null){
                     api_client = new APIClient(api_host, user_name, password);
                 }
-                else if(api_host != api_client.get_api_host() ||
-                        user_name != api_client.get_user_name() ||
-                        password != api_client.get_password()){
+                else if(!Objects.equals(api_host, api_client.get_api_host()) ||
+                        !Objects.equals(user_name, api_client.get_user_name()) ||
+                        !Objects.equals(password, api_client.get_password())){
+                    Log.i(TAG, "Invalidating API client. Setting changed");
                     api_client =  null;
                     continue;
 
                 }
                 update_network_status();
-                if (are_credentials_valid && has_internet && is_host_up)
+                long now = System.currentTimeMillis() / 1000;
+                if ( (now - last_device_table_update) > DEVICE_TABLE_UPDATE_PERIOD &&
+                        //fixed
+                        has_internet  &&
+                        are_credentials_valid  &&
+                        is_host_up)
                     update_device_file_table();
                 try {
-                    sleep(10000);
+                    sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -152,10 +158,9 @@ public class FileManagerService extends Service {
     @Override
     public void onCreate() {
         storage_dir = getApplicationContext().getExternalFilesDir(null);
-        Log.e("TODEL", "Created! file service");
         updater = new Updater();
         updater.start(); // could also use an observer
-        // fixme this is not stopped on close of the ap...?!
+        // todo this is not stopped on close of the ap...?!
     }
 
 

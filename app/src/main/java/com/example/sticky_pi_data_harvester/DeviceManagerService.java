@@ -36,6 +36,7 @@ public class DeviceManagerService extends Service {
     static final String SERVICE_TYPE = "_http._tcp.";
     static final String SERVICE_NAME_PREFIX = "StickyPi-";
     static final String UPDATE_LOCATION_INTENT = "UPDATE_LOCATION_INTENT";
+    int debug_i = 0;
 
     String location_provider;
     Location location;
@@ -144,8 +145,10 @@ public class DeviceManagerService extends Service {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
+                        Log.e("TODEL", "Thread updater: "+ debug_i++ + " " + Thread.currentThread());
 
                         if (device_dict.containsKey(dev_handl.get_device_id())) {
+
                             if (device_dict.get(dev_handl.get_device_id()).isAlive()) {
                                 Log.w(TAG, "Device " + dev_handl.get_device_id() + " already registered and running.");
                                 return;
@@ -229,7 +232,7 @@ public class DeviceManagerService extends Service {
 
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
-        Log.e("TODEL", "service created");
+
     }
 
 

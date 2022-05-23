@@ -32,14 +32,18 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
                 renderedView = renderString(String.valueOf(fh.get_n_jpg_images() + fh.get_n_trace_images()));
                 break;
             case 2:
-                int denom =  fh.get_n_jpg_images() + fh.get_n_trace_images();
+                int denom =  (fh.get_n_jpg_images() + fh.get_n_trace_images() - fh.get_n_traced_jpg_images());
                 if(denom >0)
-                    renderedView = renderString(String.valueOf(fh.get_n_trace_images() / denom));
+                    renderedView = renderString(String.valueOf(String.format(
+                            "%.01f",
+                            (100.0 * fh.get_n_trace_images()) / (float) denom
+                    )));
                 else
                     renderedView = renderString("NA");
                 break;
             case 3:
-                renderedView = renderString(String.valueOf(fh.get_disk_use() / (1024 * 1024)));
+                double val = ((double) fh.get_disk_use()) / Math.pow(1024, 3);
+                renderedView = renderString(String.format("%.02f",val));
                 break;
 
             case 4:
