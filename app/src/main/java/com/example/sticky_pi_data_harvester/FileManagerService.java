@@ -73,15 +73,23 @@ public class FileManagerService extends Service {
     }
 
 
-    private void update_device_file_table(){
+    private void update_device_file_table(boolean start_upload){
         File directory = new File(String.valueOf(storage_dir));
         File[] device_dirs = directory.listFiles();
         for (File dir : device_dirs) {
             if(dir.isDirectory()){
                 if(! is_device_handled(dir.getName())){
                     FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
-                    file_handler.start();
                     file_handler_list.add(file_handler);
+//                    if(start_upload)
+//                        file_handler.start();
+                }
+            }
+        }
+        if(file_handler_list != null && start_upload){
+            for(FileHandler fh: file_handler_list){
+                if( !fh.isAlive()){
+                    fh.start();
                 }
             }
         }
@@ -112,15 +120,17 @@ public class FileManagerService extends Service {
 
         @Override
         public void run(){
-            int i = 0;
+//            int i = 0;
             while(true){
-                Log.e("TODEL", "Thread updater: "+ i++ + " " + Thread.currentThread());
+//                Log.e("FIXME", "Thread updater: "+ i++ + " " + Thread.currentThread());
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
                 String api_host =  sharedpreferences.getString("preference_api_host", "");
                 String user_name =  sharedpreferences.getString("preference_user_name", "");
                 String password =  sharedpreferences.getString("preference_password", "");
                 delete_uploaded_images =  sharedpreferences.getBoolean("preference_delete_uploaded_images", false);
-               
+                String protocol= "https";
+
+
                 // fixed DEV
 //                api_host = "192.168.42.86";
 //                user_name = "test_wr_user";
@@ -128,24 +138,30 @@ public class FileManagerService extends Service {
 //                String protocol= "http";
 
                 if (api_client == null){
-                    api_client = new APIClient(api_host, user_name, password);
+                    api_client = new APIClient(api_host, user_name, password, protocol);
                 }
                 else if(!Objects.equals(api_host, api_client.get_api_host()) ||
                         !Objects.equals(user_name, api_client.get_user_name()) ||
                         !Objects.equals(password, api_client.get_password())){
                     Log.i(TAG, "Invalidating API client. Setting changed");
                     api_client =  null;
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     continue;
 
                 }
+
                 update_network_status();
                 long now = System.currentTimeMillis() / 1000;
-                if ( (now - last_device_table_update) > DEVICE_TABLE_UPDATE_PERIOD &&
-                        //fixed
-                        has_internet  &&
-                        are_credentials_valid  &&
-                        is_host_up)
-                    update_device_file_table();
+                boolean upload_files = (now - last_device_table_update) > DEVICE_TABLE_UPDATE_PERIOD &&
+                                //fixed
+                                has_internet  &&
+                                are_credentials_valid  &&
+                                is_host_up;
+                    update_device_file_table(upload_files);
                 try {
                     sleep(1000);
                 } catch (InterruptedException e) {

@@ -56,9 +56,6 @@ public class APIClient {
     }
 
 
-    APIClient(String api_host, String user_name, String password){
-        new APIClient(api_host, user_name, password, "https");
-    }
     APIClient(String api_host, String user_name, String password, String protocol){
         m_api_host = api_host;
         m_user_name = user_name;

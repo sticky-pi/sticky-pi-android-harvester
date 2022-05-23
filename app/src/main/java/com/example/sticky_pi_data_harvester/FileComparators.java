@@ -13,7 +13,7 @@ public class FileComparators {
     }
 
     // compare by number of images
-    public static Comparator<FileHandler> getNofImagesComparator() {
+    public static Comparator<FileHandler> getImagesComparator() {
         return new NofImagesComparator();
     }
 

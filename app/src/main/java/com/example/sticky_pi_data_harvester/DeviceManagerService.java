@@ -15,6 +15,7 @@ import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Binder;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import androidx.annotation.NonNull;
@@ -145,7 +146,7 @@ public class DeviceManagerService extends Service {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
-                        Log.e("TODEL", "Thread updater: "+ debug_i++ + " " + Thread.currentThread());
+                        Log.e("FIXME", "Thread updater: "+ debug_i++ + " " + Thread.currentThread());
 
                         if (device_dict.containsKey(dev_handl.get_device_id())) {
 

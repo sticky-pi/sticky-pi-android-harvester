@@ -16,6 +16,8 @@ import com.example.sticky_pi_data_harvester.databinding.FragmentImageFilesBindin
 
 import java.util.ArrayList;
 
+import de.codecrafters.tableview.listeners.TableDataClickListener;
+
 public class FileFragment extends Fragment {
 
     private FragmentImageFilesBinding binding;
@@ -81,7 +83,10 @@ public class FileFragment extends Fragment {
                 TextView network_status_text = main_activity.findViewById(R.id.network_status);
                 if(network_status_text != null) {
                     String status = "";
-                    if(file_manager_service.get_api_client().get_api_host().equals("") || file_manager_service.get_api_client().get_user_name().equals("")){
+                    if (file_manager_service.get_api_client() == null || file_manager_service.get_api_client().get_api_host() == null){
+                        network_status_text.setText("Waiting for API client");
+                    }
+                    else if (file_manager_service.get_api_client().get_api_host().equals("") || file_manager_service.get_api_client().get_user_name().equals("")){
                         network_status_text.setText("You need a host and a user name/.\nCheck your settings!");
                     }
 
@@ -111,8 +116,7 @@ public class FileFragment extends Fragment {
             LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState
     ) {
-
-
+        
 
         binding = FragmentImageFilesBinding.inflate(inflater, container, false);
 
@@ -123,66 +127,26 @@ public class FileFragment extends Fragment {
             mUpdateTimeTask.run();
 
         }
-
         final FileSortableTable tableView = (FileSortableTable) binding.getRoot().findViewById(R.id.file_list_view);
-        Log.e("adapter", "...");
         if (tableView != null) {
-
             adapter = new FileTableAdapter(main_activity, file_handler_list);
-
-            Log.e("adapter", "OK");
             tableView.setDataAdapter(adapter);
-
-            // Failing clickable table
-//            tableView.setClickable(true);
-//            tableView.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View view) {
-//                    Log.i("info", "clicked");
-//
-//                    Bundle bundle = new Bundle();
-//                    // First string means the key to retrieve the second string
-//                    bundle.putString("a", binding.getRoot().findViewById(R.id.device_id).toString());
-//                    NavHostFragment.findNavController(FileFragment.this)
-//                            .navigate(R.id.action_DeviceFragment_to_DetailFragment, bundle);
-//                }
-//            });
-//            tableView.addDataClickListener(new CarClickListener());
-//            tableView.addDataLongClickListener(new CarLongClickListener());
-//            carTableView.setSwipeToRefreshEnabled(true);
-//            carTableView.setSwipeToRefreshListener(new SwipeToRefreshListener() {
-//                @Override
-//                public void onRefresh(final RefreshIndicator refreshIndicator) {
-//                    carTableView.postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            final Car randomCar = getRandomCar();
-//                            carTableDataAdapter.getData().add(randomCar);
-//                            carTableDataAdapter.notifyDataSetChanged();
-//                            refreshIndicator.hide();
-//                            Toast.makeText(MainActivity.this, "Added: " + randomCar, Toast.LENGTH_SHORT).show();
-//                        }
-//                    }, 3000);
-//                }
-//            });
-//        }
-    }
+            tableView.setClickable(true);
+            tableView.addDataClickListener(new TableDataClickListener<FileHandler>() {
+                @Override
+                public void onDataClicked(final int row_index, final FileHandler fh) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString("a", fh.get_device_id());
+                    NavHostFragment.findNavController(FileFragment.this)
+                            .navigate(R.id.action_DeviceFragment_to_DetailFragment, bundle);
+                }
+            });
+        }
     return binding.getRoot();
 
     }
 
-    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
 
-        binding.buttonSecond.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Log.e("test1", "2->1");
-                NavHostFragment.findNavController(FileFragment.this)
-                        .navigate(R.id.action_SecondFragment_to_FirstFragment);
-            }
-        });
-    }
 
 @Override
     public void onDestroyView() {

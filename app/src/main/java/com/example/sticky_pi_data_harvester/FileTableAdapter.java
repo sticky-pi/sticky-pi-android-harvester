@@ -29,24 +29,26 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
                 renderedView = renderString(fh.get_device_id());
                 break;
             case 1:
-                renderedView = renderString(String.valueOf(fh.get_n_jpg_images() + fh.get_n_trace_images()));
-                break;
-            case 2:
+                String percent_up;
                 int denom =  (fh.get_n_jpg_images() + fh.get_n_trace_images() - fh.get_n_traced_jpg_images());
-                if(denom >0)
-                    renderedView = renderString(String.valueOf(String.format(
+                if(denom >0) {
+                    percent_up = String.valueOf(String.format(
                             "%.01f",
                             (100.0 * fh.get_n_trace_images()) / (float) denom
-                    )));
-                else
-                    renderedView = renderString("NA");
+                    ));
+                }
+                else {
+                    percent_up = "NA";
+                }
+                String n_img = String.valueOf(fh.get_n_jpg_images() + fh.get_n_trace_images());
+                renderedView = renderString(n_img + " (" + percent_up + "%⬆)");
                 break;
-            case 3:
+            case 2:
                 double val = ((double) fh.get_disk_use()) / Math.pow(1024, 3);
                 renderedView = renderString(String.format("%.02f",val));
                 break;
 
-            case 4:
+            case 3:
                 long deltaT = Instant.now().getEpochSecond() - fh.get_last_seen();
                 renderedView = renderString(secs_to_human_durations(deltaT));
                 break;
@@ -62,7 +64,7 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
         textView.setTextSize(TEXT_SIZE);
         return textView;
     }
-
+    // todo merge this with the other adaptor's same code same struggle ()account for the "-" sign
     private String secs_to_human_durations(long seconds){
         String prefix = "";
         boolean isNegative = seconds < 0;

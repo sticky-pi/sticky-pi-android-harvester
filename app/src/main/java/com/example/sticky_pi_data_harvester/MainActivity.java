@@ -96,10 +96,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     public FileManagerService get_file_manager_service() {
-//        if(file_manager_service == null) {
-//            Log.w(TAG, "File service not bound, so returning empty list");
-//            return new ArrayList<>();
-//        }
         return file_manager_service;
     }
 
