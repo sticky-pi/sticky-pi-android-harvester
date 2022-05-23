@@ -116,7 +116,7 @@ public class FileFragment extends Fragment {
             LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState
     ) {
-        
+
 
         binding = FragmentImageFilesBinding.inflate(inflater, container, false);
 
