@@ -81,11 +81,14 @@ public class FileManagerService extends Service {
                 if(! is_device_handled(dir.getName())){
                     FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
                     file_handler_list.add(file_handler);
-//                    if(start_upload)
-//                        file_handler.start();
                 }
             }
         }
+        // in case user ticked/unticked option, we set it here
+        for(FileHandler fh: file_handler_list){
+            fh.set_delete_uploaded_images(delete_uploaded_images);
+        }
+
         if(file_handler_list != null && start_upload){
             for(FileHandler fh: file_handler_list){
                 if( !fh.isAlive()){
@@ -93,7 +96,8 @@ public class FileManagerService extends Service {
                 }
             }
         }
-        last_device_table_update = System.currentTimeMillis() / 1000;
+        if(start_upload)
+            last_device_table_update = System.currentTimeMillis() / 1000;
     }
     public boolean is_domain_up(String domain) {
         try {
@@ -110,7 +114,14 @@ public class FileManagerService extends Service {
     private void update_network_status(){
         has_internet = is_domain_up("google.com");
         is_host_up = is_domain_up(api_client.get_api_host());
-        are_credentials_valid = api_client.get_token();}
+        try {
+            are_credentials_valid = api_client.get_token();
+        }
+        catch (Exception e) {
+            Log.e(TAG, String.valueOf(e));
+            are_credentials_valid = false;
+        }
+    }
 
 
     class Updater extends Thread{

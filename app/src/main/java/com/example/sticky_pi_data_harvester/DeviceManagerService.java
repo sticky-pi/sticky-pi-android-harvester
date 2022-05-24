@@ -222,7 +222,6 @@ public class DeviceManagerService extends Service {
         locationManager = (LocationManager) gps_context.getSystemService(Context.LOCATION_SERVICE);
         location_provider = locationManager.getBestProvider(new Criteria(), false);
 
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //todo
             return;
@@ -235,7 +234,6 @@ public class DeviceManagerService extends Service {
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
 
     }
-
 
 
     @Override

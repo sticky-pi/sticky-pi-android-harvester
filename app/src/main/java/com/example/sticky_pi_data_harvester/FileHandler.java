@@ -55,9 +55,9 @@ public class FileHandler extends Thread{
     boolean m_delete_uploaded_images = false;
 
     SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+    SimpleDateFormat day_formatter = new SimpleDateFormat("yyyy-MM-dd");
 
     // private DeviceHandler devH = new DeviceHandler();
-
 
     FileHandler(String directory, APIClient api_client, boolean delete_uploaded_images){
         super();
@@ -72,28 +72,36 @@ public class FileHandler extends Thread{
     }
 
     void delete_all_traces() {
-
         File directory = new File(m_directory);
-        File[] images = directory.listFiles(new FilenameFilter() {
-                                                @Override
-                                                public boolean accept(File dir, String name) {
-                                                    return name.matches("^.*\\.trace$");
-                                                }
-                                            }
-        );
-        if (images != null) {
-            for (File img_or_trace : images) {
-                img_or_trace.delete();
+
+        File[] day_dirs = directory.listFiles();
+
+        if (day_dirs != null) {
+            for (File day_dir : day_dirs) {
+                if(!day_dir.isDirectory())
+                    continue;
+                File[] images = day_dir.listFiles(new FilenameFilter() {
+                                                      @Override
+                                                      public boolean accept(File dir, String name) {
+                                                          return name.matches("^.*\\.trace$");
+                                                      }
+                                                  }
+                );
+                if (images != null) {
+                    for (File img_or_trace : images) {
+                        img_or_trace.delete();
+                    }
+                }
             }
         }
     }
+
     String get_device_id(){return device_id;}
     long get_last_seen(){return last_img_seen;}
     int get_n_jpg_images(){return n_jpg_images;}
     int get_n_traced_jpg_images(){return n_traced_jpg_images;}
     int get_n_trace_images(){return n_trace_images;}
     long get_disk_use(){
-        Log.e("TODEL", device_id + ": " + disk_used);
         return disk_used ;
     }
 
@@ -105,34 +113,43 @@ public class FileHandler extends Thread{
         long most_recent_seen = 0;
 
         File directory = new File(m_directory);
-        List<File> imgs = new ArrayList<>();
+//        List<File> imgs = new ArrayList<>();
 
-        File[] images = directory.listFiles(new FilenameFilter() {
-                                         @Override
-                                         public boolean accept(File dir, String name) {
-                                             return name.matches("^(.*\\.jpg)|(.*\\.trace)$");
-                                         }
-                                     }
-       );
-       if(images != null){
-           for (File img_or_trace : images){
-               if(img_or_trace.getName().endsWith(".jpg")){
-                   tmp_n_jpg_images +=1;
-                   if(new File(img_or_trace.getPath() + ".trace").isFile()){
-                       tmp_n_traced_jpg_images +=1;
 
-                   }
-                   long latest_seen = parse_date(img_or_trace.getName());
-                   if (latest_seen > most_recent_seen) {
-                       most_recent_seen = latest_seen;
-                   }
-                   tmp_disk_used += img_or_trace.length();
-               }
-               if(img_or_trace.getName().endsWith(".trace")){
-                   tmp_n_trace_images +=1;
-               }
-           }
-       }
+        File[] day_dirs = directory.listFiles();
+        if(day_dirs != null) {
+            for(File day_dir: day_dirs){
+                if(!day_dir.isDirectory()){
+                    continue;
+                }
+                File[] images = day_dir.listFiles(new FilenameFilter() {
+                                                        @Override
+                                                        public boolean accept(File dir, String name) {
+                                                            return name.matches("^(.*\\.jpg)|(.*\\.trace)$");
+                                                        }
+                                                    }
+                );
+                if (images != null) {
+                    for (File img_or_trace : images) {
+                        if (img_or_trace.getName().endsWith(".jpg")) {
+                            tmp_n_jpg_images += 1;
+                            if (new File(img_or_trace.getPath() + ".trace").isFile()) {
+                                tmp_n_traced_jpg_images += 1;
+
+                            }
+                            long latest_seen = parse_date(img_or_trace.getName());
+                            if (latest_seen > most_recent_seen) {
+                                most_recent_seen = latest_seen;
+                            }
+                            tmp_disk_used += img_or_trace.length();
+                        }
+                        if (img_or_trace.getName().endsWith(".trace")) {
+                            tmp_n_trace_images += 1;
+                        }
+                    }
+                }
+            }
+        }
         disk_used = tmp_disk_used;
         n_jpg_images = tmp_n_jpg_images;
         n_traced_jpg_images = tmp_n_traced_jpg_images;
@@ -201,12 +218,20 @@ public class FileHandler extends Thread{
 
     }
 
+    public void set_delete_uploaded_images(boolean delete_uploaded_images) {
+        m_delete_uploaded_images = delete_uploaded_images;
+    }
+
+
     private boolean should_delete_parent(){
         return m_delete_uploaded_images;
     }
+
+
     private void upload_one_jpg(long timestamp){
         String date = date_formatter.format(new Date(timestamp));
-        String img_path = m_directory + "/" + device_id + "." + date + ".jpg";
+        String day_str = day_formatter.format(new Date(timestamp));
+        String img_path = m_directory + "/" + day_str + "/" +device_id + "." + date + ".jpg";
         String trace_img_path = img_path + ".trace";
         File image = new File(img_path);
         File trace = new File(trace_img_path);
@@ -268,7 +293,6 @@ public class FileHandler extends Thread{
                 }
             }
 
-
             if (to_upload) {
                 Log.i(TAG, "Uploading " + image.getName() + " (" + md5 + ")");
                 if(m_api_client.put_image(image, md5)){
@@ -286,8 +310,21 @@ public class FileHandler extends Thread{
         }
     }
 
-    private void upload_all_jpg() {
+
+    private void upload_all_jpg(){
         File directory = new File(m_directory);
+
+        File[] day_dir = directory.listFiles();
+        if (day_dir != null) {
+            for(File d: day_dir){
+                if(!d.isDirectory())
+                    continue;
+                upload_all_jpg_in_day_dir(d);
+            }
+        }
+
+    }
+    private void upload_all_jpg_in_day_dir(File directory) {
         File[] images = directory.listFiles(new FilenameFilter() {
                                                 @Override
                                                 public boolean accept(File dir, String name) {

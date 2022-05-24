@@ -26,7 +26,7 @@
         >
 
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="128dp"
             android:layout_weight="1"
@@ -37,21 +37,52 @@
                 android:id="@+id/location_text_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
                 android:text="No Location data!"
                 android:fontFamily="monospace"
                 android:textSize="10dp"
                 app:drawableLeftCompat="@drawable/ic_baseline_map_24"
 
                 />
-
-            <ImageView
-                android:id="@+id/local_only_ap_qr"
+            <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:adjustViewBounds="true"
-                android:scaleType="fitXY" />
+                android:orientation="vertical"
+                 android:layout_height="match_parent"
+                android:layout_alignParentEnd="true"
+                >
 
-        </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Connectivity"
+                    android:textSize="16dp"
+                    />
+                <TextView
+                    android:id="@+id/device_conectivity_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Unknown"
+                    android:textSize="14dp"
+                    />
+                <Button
+                    android:id="@+id/device_conectivity_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16dp"
+                    android:text="Unknown"
+                    />
+
+            </LinearLayout>
+
+<!--            <ImageView-->
+<!--                android:id="@+id/local_only_ap_qr"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:adjustViewBounds="true"-->
+<!--                android:scaleType="fitXY" />-->
+
+        </RelativeLayout>
 
         <GridView
             android:id="@+id/device_grid_view"

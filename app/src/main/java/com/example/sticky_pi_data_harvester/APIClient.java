@@ -153,7 +153,6 @@ public class APIClient {
             try {
                 BufferedReader rd = new BufferedReader(new InputStreamReader(input_stream, Charset.forName("UTF-8")));
                 String jsonText = read_all(rd);
-                Log.e(TAG, String.valueOf(jsonText));
 //                out = payload.getClass().getDeclaredConstructors(String.class).newInstance(jsonText);
                 if (payload instanceof JSONObject){
                     out = new JSONObject(jsonText);
@@ -181,8 +180,7 @@ public class APIClient {
 
     public Object  api_call(Object payload, String endpoint){
         ongoing_requests++;
-        while (ongoing_requests >= MAX_CONCURRENT_REQUESTS){
-            Log.e("todel", "Queuing request");
+        while (ongoing_requests >= MAX_CONCURRENT_REQUESTS){    
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

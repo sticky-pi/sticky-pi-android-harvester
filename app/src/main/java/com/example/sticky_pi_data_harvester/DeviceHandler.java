@@ -207,10 +207,22 @@ public class DeviceHandler extends Thread {
         File dir = new File(target_dir);
         if (dir.isDirectory())
         {
+
             String[] children = dir.list();
             for (int i = 0; i < children.length; i++)
             {
-                new File(dir, children[i]).delete();
+                File file = new File(dir, children[i]);
+                if (file.isDirectory()) {
+                    String[] grand_children = file.list();
+                    for (int j = 0; j < grand_children.length; j++){
+                        File grand_file = new File(file, grand_children[j]);
+                        if(grand_file.isFile()){
+                            grand_file.delete();
+                        }
+                    }
+                }
+                else
+                    file.delete();
             }
         }
     }
@@ -274,7 +286,21 @@ public class DeviceHandler extends Thread {
     }
     private  boolean get_single_image(URL remote_url, String path, String hash, int retry) {
         Log.i(TAG, "Getting: "+ remote_url.toString());
-//
+
+        String day_dir_str = (new File (path)).getParent();
+        assert day_dir_str != null;
+        File day_dir = new File(day_dir_str);
+        if (!(day_dir).isDirectory()){
+            boolean success = day_dir.mkdirs();
+            if(!success){
+                // we recheck in case another thread created the dir just now
+                if(!(day_dir).isDirectory()) {
+                    Log.e(TAG, "Could not create subdirectory: " + day_dir_str);
+                    return false;
+                }
+            }
+        }
+
         if(retry > 3){
             Log.e(TAG, "Max retry reached. Failed to get image " + remote_url.toString());
             n_errored ++;
@@ -368,7 +394,6 @@ public class DeviceHandler extends Thread {
             File out = new File(path);
             tmp_file.renameTo(out);
 
-            //todo iff > than previous
             File last_image_file = new File(last_image_path);
             if(last_image_file.getName().compareTo(out.getName()) < 0 )
                 last_image_path = out.getAbsolutePath();
@@ -444,7 +469,7 @@ public class DeviceHandler extends Thread {
 
 
                 executor.submit( () -> {
-                    get_single_image(image_url, target_dir + "/" + filename, hash, 0);
+                    get_single_image(image_url, target_dir + "/" + day_str + "/" + filename, hash, 0);
                     write_persistent_device_status();
                     long now =  Instant.now().getEpochSecond();
                     if (now - last_keep_alive > KEEP_ALIVE_TIMEOUT) {
