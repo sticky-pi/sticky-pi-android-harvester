@@ -261,6 +261,7 @@ public class FileHandler extends Thread{
                 return;
             }
             else {
+                Log.e(TAG, "Deleting erroneous trace: " + trace.getName());
                 trace.delete();
             }
         }
@@ -343,7 +344,7 @@ public class FileHandler extends Thread{
                 if (fields.length > 2) {
                     try {
                         Date date = date_formatter.parse(fields[1]);
-                        image_timestamps.add(date.getTime());
+                        Log.e("FIXME", date + "");
                     } catch (ParseException e) {
                         Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ")");
                         e.printStackTrace();
