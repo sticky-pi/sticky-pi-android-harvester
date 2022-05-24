@@ -1,15 +1,21 @@
 package com.example.sticky_pi_data_harvester;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 
@@ -18,8 +24,11 @@ import com.example.sticky_pi_data_harvester.databinding.FragmentImageFilesBindin
 
 import org.w3c.dom.Text;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Objects;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -76,25 +85,56 @@ public class DetailFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
+
         View inflatedView = inflater.inflate(R.layout.fragment_detail, container,false);
+
         MainActivity main_activity = (MainActivity) getActivity();
         file_manager_service = main_activity.get_file_manager_service();
-        file_handler_list = file_manager_service.get_file_handler_list();
         TextView t = (TextView) inflatedView.findViewById(R.id.device_id);
-        t.setText("Current device: " + getArguments().getString("a"));
+        if (file_manager_service == null) {
+            t.setText("No file manager found");
+            return inflatedView;
+        }
+        file_handler_list = file_manager_service.get_file_handler_list();
+        String devId =  getArguments().getString("a");
+        t.setText("Current device: " + devId);
 
+        FileHandler fileHandler = null;
+        for (FileHandler fh: file_handler_list) {
+            if(Objects.equals(fh.get_device_id(), devId)) {
+                fileHandler = fh;
+            }
+        }
+        if (fileHandler == null ) {
+            t.setText("No file handler for device " + devId);
+            return inflatedView;
+        }
+        fileHandler.index_files();
+        int n_jpg_images = fileHandler.get_n_jpg_images();
+        int n_traced_jpg_images = fileHandler.get_n_traced_jpg_images();
 
-        // Inflate the layout for this fragment
-        //return inflater.inflate(R.layout.fragment_detail, container, false);
-        // TODO :add on to show gridview of single device (need arg passed by from constructor)
+        TextView n_jpg = (TextView) inflatedView.findViewById(R.id.n_jpgs);
+        n_jpg.setText("Number of local images: "+ n_jpg_images);
+        TextView n_traced = (TextView) inflatedView.findViewById(R.id.n_traces);
+        n_traced.setText("Number of traced images: " + n_traced_jpg_images);
 
+        ImageView latest_image = (ImageView) inflatedView.findViewById(R.id.detailed_image);
 
-        // TODO: add on to show scrollbar view of list of images (need arg passed by from constructor)
-        // requires a list of files
-
-
-        // TODO: add on to show size , download99 status of the latest image of a device
+        ImageRep img = new ImageRep(file_manager_service, fileHandler.get_device_id(), fileHandler.get_last_seen());
+        String path = img.getImagePath(file_manager_service,fileHandler.get_device_id());
+        if(path.compareTo("") != 0) {
+            Uri img_uri=Uri.parse(path);
+            latest_image.setImageURI(img_uri);
+        }
 
         return inflatedView;
     }
+
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        binding = null;
+    }
+
 }

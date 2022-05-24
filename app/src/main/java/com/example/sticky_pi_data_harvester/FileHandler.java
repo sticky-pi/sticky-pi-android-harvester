@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -69,6 +70,8 @@ public class FileHandler extends Thread{
         last_img_seen = 0;
         m_api_client = api_client;
         m_delete_uploaded_images = delete_uploaded_images;
+        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+        day_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
 
     void delete_all_traces() {
