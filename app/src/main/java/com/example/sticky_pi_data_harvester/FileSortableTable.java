@@ -16,6 +16,7 @@ public class FileSortableTable extends SortableTableView<FileHandler> {
     public FileSortableTable(final Context context) {
 
         this(context, null);
+
     }
 
     public FileSortableTable(final Context context, final AttributeSet attributes) {
@@ -25,8 +26,7 @@ public class FileSortableTable extends SortableTableView<FileHandler> {
     public FileSortableTable(final Context context, final AttributeSet attributes, final int styleAttributes) {
         super(context, attributes, styleAttributes);
 
-        final SimpleTableHeaderAdapter simpleTableHeaderAdapter = new SimpleTableHeaderAdapter(context, "Device", "N images", "% Uploaded", "GB used",
-                "Last Seen");
+        final SimpleTableHeaderAdapter simpleTableHeaderAdapter = new SimpleTableHeaderAdapter(context, "Device", "Images", "GB", "Seen");
         //simpleTableHeaderAdapter.setTextColor(ContextCompat.getColor(context, R.color.table_header_text));
         setHeaderAdapter(simpleTableHeaderAdapter);
 
@@ -35,21 +35,21 @@ public class FileSortableTable extends SortableTableView<FileHandler> {
 //        setDataRowBackgroundProvider(TableDataRowBackgroundProviders.alternatingRowColors(rowColorEven, rowColorOdd));
         setHeaderSortStateViewProvider(SortStateViewProviders.brightArrows());
 
-        final TableColumnWeightModel tableColumnWeightModel = new TableColumnWeightModel(5);
-        tableColumnWeightModel.setColumnWeight(0, 3);
-        tableColumnWeightModel.setColumnWeight(1, 3);
+        final TableColumnWeightModel tableColumnWeightModel = new TableColumnWeightModel(4);
+        tableColumnWeightModel.setColumnWeight(0, 4);
+        tableColumnWeightModel.setColumnWeight(1, 4);
         tableColumnWeightModel.setColumnWeight(2, 3);
-        tableColumnWeightModel.setColumnWeight(3, 3);
-        tableColumnWeightModel.setColumnWeight(4,3);
+        tableColumnWeightModel.setColumnWeight(3, 4);
+//        tableColumnWeightModel.setColumnWeight(4,3);
 
 //        tableColumnWeightModel.setColumnWeight(3, 2);
         setColumnModel(tableColumnWeightModel);
 
         setColumnComparator(0, FileComparators.getDeviceIDComparator());
-        setColumnComparator(1, FileComparators.getNofImagesComparator());
-        setColumnComparator(2, FileComparators.getPercentUploadedComparator());
-        // setColumnComparator(3, FileComparators.getGBusedComparator());
-        setColumnComparator(4, FileComparators.getLastSeenComparator());
+        setColumnComparator(1, FileComparators.getImagesComparator());
+        // setColumnComparator(2, FileComparators.getGBusedComparator());
+        setColumnComparator(3, FileComparators.getLastSeenComparator());
+//        setColumnComparator(2, FileComparators.getPercentUploadedComparator());
 
     }
 

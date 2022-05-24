@@ -15,6 +15,7 @@ import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Binder;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import androidx.annotation.NonNull;
@@ -36,6 +37,7 @@ public class DeviceManagerService extends Service {
     static final String SERVICE_TYPE = "_http._tcp.";
     static final String SERVICE_NAME_PREFIX = "StickyPi-";
     static final String UPDATE_LOCATION_INTENT = "UPDATE_LOCATION_INTENT";
+    int debug_i = 0;
 
     String location_provider;
     Location location;
@@ -144,8 +146,10 @@ public class DeviceManagerService extends Service {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
+                        Log.e("FIXME", "Thread updater: "+ debug_i++ + " " + Thread.currentThread());
 
                         if (device_dict.containsKey(dev_handl.get_device_id())) {
+
                             if (device_dict.get(dev_handl.get_device_id()).isAlive()) {
                                 Log.w(TAG, "Device " + dev_handl.get_device_id() + " already registered and running.");
                                 return;
@@ -218,7 +222,6 @@ public class DeviceManagerService extends Service {
         locationManager = (LocationManager) gps_context.getSystemService(Context.LOCATION_SERVICE);
         location_provider = locationManager.getBestProvider(new Criteria(), false);
 
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //todo
             return;
@@ -229,9 +232,8 @@ public class DeviceManagerService extends Service {
 
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
-        Log.e("TODEL", "service created");
-    }
 
+    }
 
 
     @Override

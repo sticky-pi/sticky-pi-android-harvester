@@ -57,7 +57,7 @@ public class DeviceGhostHandler extends com.example.sticky_pi_data_harvester.Dev
 
     public float get_available_disk_space(){
         try {
-            return (float) m_properties.getDouble("last_pace");
+            return (float) m_properties.getDouble("available_disk_space");
         } catch (JSONException e) {
             e.printStackTrace();
             return 0.0F;
