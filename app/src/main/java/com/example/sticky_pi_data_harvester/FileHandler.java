@@ -347,8 +347,7 @@ public class FileHandler extends Thread{
                 if (fields.length > 2) {
                     try {
                         Date date = date_formatter.parse(fields[1]);
-                        Log.e("FIXME", date + "");
-                    } catch (ParseException e) {
+                        } catch (ParseException e) {
                         Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ")");
                         e.printStackTrace();
                     }

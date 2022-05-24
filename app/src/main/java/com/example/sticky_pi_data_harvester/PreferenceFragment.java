@@ -76,7 +76,7 @@ public class PreferenceFragment extends Fragment {
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
 
-        setHasOptionsMenu(false);
+        setHasOptionsMenu(true);
 
     }
 

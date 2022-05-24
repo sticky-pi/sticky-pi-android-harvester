@@ -210,6 +210,18 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
 
+        if (id == R.id.action_images) {
+            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController.navigate(R.id.ImagesFragment);
+            return true;
+        }
+
+        if (id == R.id.action_devices) {
+            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController.navigate(R.id.DeviceListFragment);
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
