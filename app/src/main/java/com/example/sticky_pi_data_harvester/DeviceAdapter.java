@@ -36,6 +36,7 @@ public class DeviceAdapter extends BaseAdapter {
         return main_activity.get_device_dict();
     }
     public DeviceAdapter(Context aContext,  MainActivity mainActivity, DeviceListFragment parentFragment) {
+
         this.context = aContext;
         main_activity = mainActivity;
         layoutInflater = LayoutInflater.from(aContext);

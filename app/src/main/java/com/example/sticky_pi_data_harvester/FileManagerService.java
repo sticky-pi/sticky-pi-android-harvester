@@ -61,6 +61,7 @@ public class FileManagerService extends Service {
 
 
     private boolean is_device_handled(String device_id){
+
         if(file_handler_list == null) {
             return false;
         }
