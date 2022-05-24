@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -191,8 +192,9 @@ public class DeviceAdapter extends BaseAdapter {
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_error_12, 0);
         }
         holder.available_disk_space.setText(String.format("%.2f", device_handler.get_available_disk_space()) + "%" );
-        String img_path =device_handler.get_last_image_path();
-        if(img_path.compareTo("") != 0) {
+        String img_path =device_handler.get_last_image_path() + ".thumbnail";
+
+        if(new File(img_path).isFile()) {
             Uri img_uri=Uri.parse(img_path);
             holder.last_image.setImageURI(img_uri);
         }
