@@ -77,9 +77,11 @@ public class DetailFragment extends Fragment {
                              Bundle savedInstanceState) {
 
         View inflatedView = inflater.inflate(R.layout.fragment_detail, container,false);
+
         MainActivity main_activity = (MainActivity) getActivity();
         file_manager_service = main_activity.get_file_manager_service();
         file_handler_list = file_manager_service.get_file_handler_list();
+
         TextView t = (TextView) inflatedView.findViewById(R.id.device_id);
         t.setText("Current device: " + getArguments().getString("a"));
 
@@ -97,4 +99,11 @@ public class DetailFragment extends Fragment {
 
         return inflatedView;
     }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        binding = null;
+    }
+
 }
