@@ -2,6 +2,7 @@ package com.example.sticky_pi_data_harvester;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -74,7 +75,7 @@ public class DeviceAdapter extends BaseAdapter {
         int i =0;
         while(e.hasMoreElements()){
             String k = e.nextElement();
-            Long time = Objects.requireNonNull(get_device_dict().get(k)).time_created;
+            Long time = Objects.requireNonNull(get_device_dict().get(k)).get_time_created();
             device_times.add(time);
             device_keys[i] = k;
             map.add(i);
@@ -82,6 +83,8 @@ public class DeviceAdapter extends BaseAdapter {
         }
 
         Collections.sort(map, (c1, c2) -> Long.compare(device_times.get((Integer) c2), device_times.get((Integer) c1)));
+
+
         String key = device_keys[map.get(position)];
         return key;
     }
@@ -149,17 +152,27 @@ public class DeviceAdapter extends BaseAdapter {
 
 
         if(device_handler.get_is_ghost()){
-            holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
+            if(device_handler.get_status().equals("errored"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_errored);
+            else
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
         }
         else {
             if(device_handler.get_status().equals("starting"))
-                holder.rectangle.setBackgroundColor(Color.parseColor("#8888bb"));
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_starting);
+
+            if(device_handler.get_status().equals("errored"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_errored);
+
             else  if(device_handler.get_status().equals("syncing"))
-                holder.rectangle.setBackgroundColor(Color.parseColor("#88bbbb"));
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_syncing);
+
             else if(device_handler.get_status().equals("done"))
-                holder.rectangle.setBackgroundColor(Color.parseColor("#88bb88"));
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_done);
+
             else
-                holder.rectangle.setBackgroundColor(Color.parseColor("#bbbbbb"));
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_unknown);
+
         }
 
         holder.device_id.setText(device_handler.get_device_id());
@@ -171,9 +184,10 @@ public class DeviceAdapter extends BaseAdapter {
         holder.downloaded_files.setText(txt);
 
         if(device_handler.get_n_errored() > 0)
-            holder.downloaded_files.setTextColor(Color.parseColor("#FF0000"));
+            holder.downloaded_files.setTypeface(null, Typeface.BOLD);
         else
-            holder.downloaded_files.setTextColor(Color.parseColor("#000000"));
+            holder.downloaded_files.setTypeface(null, Typeface.NORMAL);
+//            holder.downloaded_files.setTextColor(Color.parseColor("#000000"));
 
         int battery_icon_num = (int ) (1 + 6.0 * device_handler.get_battery_level() /100.0);
         if (battery_icon_num < 1)

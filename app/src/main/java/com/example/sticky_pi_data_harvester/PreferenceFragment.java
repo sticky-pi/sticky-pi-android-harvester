@@ -37,7 +37,8 @@ public class PreferenceFragment extends Fragment {
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
 
-    public static final  String[] keys = {"preference_api_host", "preference_user_name", "preference_password", "preference_delete_uploaded_images"};
+    public static final  String[] keys = {"preference_api_host", "preference_user_name", "preference_password",
+            "preference_delete_uploaded_images", "preference_enforce_gps"};
 
 
     // TODO: Rename and change types of parameters
@@ -83,7 +84,6 @@ public class PreferenceFragment extends Fragment {
     @Override
     public void onPrepareOptionsMenu(Menu menu) {
         MenuItem item=menu.findItem(R.id.action_settings);
-        Log.e("TODEL", "HIDING SETTINGS");
         if(item!=null)
             item.setVisible(false);
     }
@@ -109,8 +109,7 @@ public class PreferenceFragment extends Fragment {
         for(String k: keys){
             if(sharedpreferences.contains(k)){
                 int id = res.getIdentifier(k, "id", getContext().getPackageName());
-
-                if(!k.equals("preference_delete_uploaded_images")) {
+                if(!(k.equals("preference_delete_uploaded_images") || k.equals("preference_enforce_gps"))) {
                     EditText target =  view.findViewById(id);
                     if(target != null)
                         target.setText(sharedpreferences.getString(k,""));
@@ -118,7 +117,13 @@ public class PreferenceFragment extends Fragment {
                 else{
                     CheckBox target = view.findViewById(id);
                     if (target != null) {
-                        target.setChecked(sharedpreferences.getBoolean(k,false));
+                        if(k.equals("preference_enforce_gps")){
+
+                            target.setChecked(sharedpreferences.getBoolean(k,true));
+                        }
+                        else{
+                            target.setChecked(sharedpreferences.getBoolean(k, false));
+                        }
 
                     }
                 }
@@ -136,7 +141,7 @@ public class PreferenceFragment extends Fragment {
                 Resources res = getResources();
                 for(String k: keys){
                     int id = res.getIdentifier(k, "id", requireContext().getPackageName());
-                    if(!k.equals("preference_delete_uploaded_images")) {
+                    if(!( k.equals("preference_delete_uploaded_images") || k.equals("preference_enforce_gps"))) {
                         EditText target = view.findViewById(id);
                         if (target != null) {
                             String text = target.getText().toString();

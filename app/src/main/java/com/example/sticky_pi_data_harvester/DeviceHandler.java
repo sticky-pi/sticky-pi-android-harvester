@@ -25,7 +25,10 @@ import java.time.Instant;
 
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -51,6 +54,9 @@ public class DeviceHandler extends Thread {
     final static double MIN_LIPO_VOLTAGE = 3.5;
     final static long KEEP_ALIVE_TIMEOUT = 30;
     final static long INTERNAL_TIMEOUT = 60; // error if device not seen in this time in seconds
+    final static long SHORT_TIMEOUT = 5000; // error if device not seen in this time in seconds
+
+    final static long DOWNLOAD_ALL_IMG_TIMEOUT = 60 * 15; // fail to dowload after that many minutes
 
     // ghosts are persistent device status used to populate the initial view
     protected boolean is_ghost = false;
@@ -138,7 +144,9 @@ public class DeviceHandler extends Thread {
     public int get_n_skipped(){
         return n_skipped;
     }
-
+    public long get_time_created(){
+        return time_created;
+    }
     public int get_battery_level(){
         double voltage = (battery_level / 100.0) * REF_VOLTAGE / VOLTAGE_DIVIDER;
         double out = (voltage - MIN_LIPO_VOLTAGE) / (MAX_LIPO_VOLTAGE - MIN_LIPO_VOLTAGE);
@@ -177,12 +185,12 @@ public class DeviceHandler extends Thread {
         return sb.toString();
     }
 
-    public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
+    public static JSONObject readJsonFromUrl(String url, int timeout) throws IOException, JSONException {
 
         URLConnection connection = new URL(url).openConnection();
         JSONObject json  = null;
         try  {
-            connection.setConnectTimeout(1000);
+            connection.setConnectTimeout(timeout);
             InputStream is = connection.getInputStream();
             BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
             String jsonText = readAll(rd);
@@ -218,6 +226,7 @@ public class DeviceHandler extends Thread {
 
     private void delete_local_files(){
         File dir = new File(target_dir);
+        Log.e(TAG, "Deleting local files. likely for development");
         if (dir.isDirectory())
         {
 
@@ -242,7 +251,7 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_log() {
         try {
-            JSONObject json = readJsonFromUrl(log_url.toString());
+            JSONObject json = readJsonFromUrl(log_url.toString(), (int) INTERNAL_TIMEOUT);
             if(json== null)
                 return false;
             String log = target_dir + "/" + device_id +".log";
@@ -273,7 +282,7 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_metadata() {
         try {
-            JSONObject out = readJsonFromUrl(status_url.toString());
+            JSONObject out = readJsonFromUrl(status_url.toString(), (int) INTERNAL_TIMEOUT);
             if(out== null)
                 return false;
             device_id = out.getString("device_id");
@@ -459,23 +468,25 @@ public class DeviceHandler extends Thread {
 //        boolean errored = false;
         try {
             Log.w(TAG, "URL: " + images_url.toString());
-            JSONObject out = readJsonFromUrl(images_url.toString());
+            JSONObject out = readJsonFromUrl(images_url.toString(), (int) INTERNAL_TIMEOUT);
             if(out== null)
                 return false;
             Iterator<String> it = out.keys();
             n_to_download = 0;
             // todo images by date sort here
 //            so we get the old ones first!
+            List<String> keys = new ArrayList<String>();
             while (it.hasNext()) {
                 n_to_download+=1;
-                it.next();
+                keys.add(it.next());
             }
+
             ThreadPoolExecutor executor =
                     (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
-            it = out.keys();
+            Collections.sort(keys);
 
-            while (it.hasNext()){
-                String k = it.next();
+            for(String k : keys){
+
                 String hash = out.getString(k);
                 String filename = device_id + "." + k + ".jpg";
                 String day_str = k.split("_")[0] ;
@@ -501,7 +512,7 @@ public class DeviceHandler extends Thread {
             }
 
             executor.shutdown();
-            executor.awaitTermination(INTERNAL_TIMEOUT, TimeUnit.SECONDS);
+            executor.awaitTermination(DOWNLOAD_ALL_IMG_TIMEOUT, TimeUnit.SECONDS);
         } catch (IOException | JSONException | InterruptedException e) {
             e.printStackTrace();
             return false;
@@ -526,8 +537,8 @@ public class DeviceHandler extends Thread {
 
             conn.setRequestMethod("POST");
 
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout((int) SHORT_TIMEOUT);
+            conn.setReadTimeout((int) SHORT_TIMEOUT);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -587,8 +598,8 @@ public class DeviceHandler extends Thread {
 
             conn.setRequestMethod("POST");
 
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout((int) SHORT_TIMEOUT);
+            conn.setReadTimeout((int) 5000);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -657,6 +668,8 @@ public class DeviceHandler extends Thread {
                     continue;
                 internal_pacemaker = Instant.now().getEpochSecond();
                 // delete local files on mock devices
+
+//                if(is_mock || device_id.equals("512858f4"))
                 if(is_mock)
                     delete_local_files();
 
@@ -684,10 +697,12 @@ public class DeviceHandler extends Thread {
                 else {
                     status = "errored";
                     Log.e(TAG, "Device "+ device_id + " errored");
+                    write_persistent_device_status();
                     return;
                 }
         }
         status = "errored";
+        write_persistent_device_status();
         Log.e(TAG, "Device "+ device_id + " timeout");
     }
 

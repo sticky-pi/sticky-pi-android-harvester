@@ -79,8 +79,18 @@
             android:layout_height="wrap_content"
             android:ems="10"
             android:layout_marginTop="20dp">
+        </CheckBox>
+        <CheckBox
+            android:text="Enforce geolocation before syncing"
+            android:id="@+id/preference_enforce_gps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:ems="10"
+            android:layout_marginTop="20dp">
 
         </CheckBox>
+
         <ProgressBar
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"

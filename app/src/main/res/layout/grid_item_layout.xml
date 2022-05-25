@@ -13,7 +13,7 @@
         android:layout_width="90dp"
         android:layout_height="150dp"
         android:layout_marginBottom="5dp"
-        android:background="@drawable/rectangle"
+        android:background="@drawable/rectangle_done"
         tools:layout_editor_absoluteX="110dp"
         tools:layout_editor_absoluteY="265dp" />
 

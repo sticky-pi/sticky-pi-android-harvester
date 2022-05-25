@@ -31,7 +31,6 @@ public class DetailTableAdapter extends TableDataAdapter<ImageRep> {
     @Override
     public View getCellView(int rowIndex, int columnIndex, ViewGroup parentView) {
         ImageRep img_rep = getRowData(rowIndex);
-//        Log.e("fixme ",img_rep.getImageStatus(root_img_dir, m_device_id));
 
         View renderedView = null;
 

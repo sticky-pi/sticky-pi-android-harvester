@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
 
-            Log.e("TODEL", "device service connecteing");
+            Log.e("", "device service connecteing");
             DeviceManagerService.MyBinder binder = (DeviceManagerService.MyBinder) service;
             device_manager_service = binder.getService();
             device_manager_service_bound = true;
@@ -71,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
-            Log.e("TODEL", "file service connecteing");
             FileManagerService.MyBinder binder = (FileManagerService.MyBinder) service;
             file_manager_service = binder.getService();
             file_manager_service_bound = true;
