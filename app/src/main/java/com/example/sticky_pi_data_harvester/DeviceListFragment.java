@@ -56,62 +56,49 @@ public class DeviceListFragment extends Fragment {
     private Handler mHandler = new Handler();
 //    MainActivity parent_activity;
     DeviceAdapter device_adapter;
-
+    private static final String TAG = "DeviceListFragment";
     BroadcastReceiver wifi_state_receiver;
     String local_only_pass, local_only_ssid;
     private WifiManager wifiManager;
     WifiManager.LocalOnlyHotspotReservation hotspotReservation;
 
-//    public void handleDialogClose(DialogInterface dialog){
-//        ImageView imageCode = getActivity().findViewById(R.id.local_only_ap_qr);
-//        if(imageCode != null)
-//            imageCode.setImageAlpha(255);
-//       };//or whatever args you want
+    private void update_location_view(){
+        MainActivity main_activity = (MainActivity) getActivity();
+        TextView location_textview = (TextView) main_activity.findViewById(R.id.location_text_view);
+        if(location_textview == null || main_activity == null)
+            return;
+        String text = "Not available!";
+        if(main_activity.device_manager_service != null){
+            Location location = main_activity.device_manager_service.get_location();
+            if(location != null) {
+                text = String.format("%+013.8f", location.getLatitude()) + "\n" +
+                        String.format("%+013.8f", location.getLongitude()) + "\n" +
+                        String.format("%+04.1f m", location.getAltitude());
 
-    private class LocationUpdateReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-
-            MainActivity main_activity = (MainActivity) getActivity();
-            if (intent.getAction().equals(DeviceManagerService.UPDATE_LOCATION_INTENT) && main_activity.device_manager_service != null) {
-                TextView location_textview = (TextView) main_activity.findViewById(R.id.location_text_view);
-                String text = "";
-                Location location = main_activity.device_manager_service.get_location();
-                if(location != null) {
-                    text += String.format("%+013.8f", location.getLatitude()) + "\n" +
-                            String.format("%+013.8f", location.getLongitude()) + "\n" +
-                            String.format("%+04.1f m", location.getAltitude());
-
-                    location_textview.setOnClickListener(new View.OnClickListener() {
-                        public void onClick(View v) {
-                            String uri = String.format(Locale.ENGLISH, "geo:%f,%f", location.getLatitude(), location.getLongitude());
-                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
-                            context.startActivity(intent);
-                        }
-                    });
+            location_textview.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    String uri = String.format(Locale.ENGLISH, "geo:%f,%f", location.getLatitude(), location.getLongitude());
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+                    main_activity.startActivity(intent);
                 }
-                else{
-                    text += "Not available";
-                }
-                location_textview.setText(text);
+            });
+        }}
+        location_textview.setText(text);
 
-            }
-        }
     }
 
-    private LocationUpdateReceiver location_update_receiver;
 
-    private static final String TAG = "StickyPiDataHarvester-framgent1";
+
 
 
     private Runnable mUpdateTimeTask = new Runnable() {
         public void run() {
             try {
+                update_location_view();
                 if(device_adapter != null) {
                     device_adapter.notifyDataSetChanged();
+
                 }
-                else
-                    Log.e(TAG, "device adapter is NULL!!");
             }
             finally {
                 mHandler.postDelayed(this, 1000);
@@ -262,18 +249,10 @@ public class DeviceListFragment extends Fragment {
         super.onResume();
 
         MainActivity main_activity = (MainActivity) getActivity();
-        if (location_update_receiver == null)
-            location_update_receiver = new LocationUpdateReceiver();
+//        if (location_update_receiver == null)
+//            location_update_receiver = new LocationUpdateReceiver();
         IntentFilter intentFilter = new IntentFilter(DeviceManagerService.UPDATE_LOCATION_INTENT);
-        main_activity.registerReceiver(location_update_receiver, intentFilter);
-        location_update_receiver.onReceive( main_activity, new Intent(DeviceManagerService.UPDATE_LOCATION_INTENT));
 
-//        if (wifi_state_receiver == null)
-//            wifi_state_receiver = new BroadcastReceiver() {
-//                @Override
-//                public void onReceive(Context context, Intent intent) {
-//                    turnOnHotspot();}
-//        };
         if (wifi_state_receiver == null)
             wifi_state_receiver = new BroadcastReceiver() {
                 @Override
@@ -285,8 +264,6 @@ public class DeviceListFragment extends Fragment {
         wifi_change.addAction("android.net.wifi.WIFI_AP_STATE_CHANGED");
 
         main_activity.registerReceiver(wifi_state_receiver, wifi_change);
-//        turnOnHotspot();
-//        Log.e("FIXME", get_hostspot_name());
         }
 
     private void update_device_connectivity() {
@@ -359,7 +336,6 @@ public class DeviceListFragment extends Fragment {
         super.onPause();
 
         MainActivity main_activity = (MainActivity) getActivity();
-        if (location_update_receiver != null) main_activity.unregisterReceiver(location_update_receiver);
         if (wifi_state_receiver != null) main_activity.unregisterReceiver(wifi_state_receiver);
     }
 

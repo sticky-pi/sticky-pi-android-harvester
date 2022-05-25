@@ -192,6 +192,7 @@ public class DeviceManagerService extends Service {
                 Log.i(TAG, "Updating location");
                 location = loc;
                 sendBroadcast(new Intent(DeviceManagerService.UPDATE_LOCATION_INTENT));
+
             }
 
 
