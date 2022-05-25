@@ -7,51 +7,104 @@
     android:layout_height="match_parent"
     tools:context=".DetailFragment">
 
-    <!-- TODO: Update blank fragment layout -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/device_id"
-        android:layout_width="wrap_content"
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:text="TextView"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="0dp" />
+        android:gravity="center"
+        android:orientation="horizontal">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="left"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/device_id"
+                android:text="Device ID"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:layout_editor_absoluteY="0dp"
+                android:textSize="18dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:layout_marginEnd="16dp"
+                />
 
-    <ImageView
-        android:id="@+id/detailed_image"
-        android:layout_width="151dp"
-        android:layout_height="146dp"
-        android:layout_marginStart="141dp"
-        android:layout_marginTop="126dp"
-        android:layout_marginEnd="142dp"
-        android:layout_marginBottom="477dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+            <TextView
+                android:id="@+id/n_jpgs"
+                android:text="Device ID2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:layout_editor_absoluteY="0dp"
+                android:textSize="16dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:layout_marginEnd="16dp"
+                />
 
-    <TextView
-        android:id="@+id/n_jpgs"
-        android:layout_width="wrap_content"
-        android:layout_height="19dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:text="TextView"
-        app:layout_constraintBottom_toTopOf="@+id/n_traces"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/device_id" />
+            <TextView
+                android:id="@+id/percent_up"
+                android:text="Device ID2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:layout_marginEnd="16dp"
+                />
+        </LinearLayout>
 
-    <TextView
-        android:id="@+id/n_traces"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginBottom="651dp"
-        android:text="TextView"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/n_jpgs" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
 
+            <TextView
+                android:id="@+id/detail_img_filename"
+                android:text="No thumbnail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="8dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:typeface="monospace"
+                android:layout_marginEnd="8dp"
+                />
+
+        <ImageView
+            android:id="@+id/detail_thumbnail"
+            android:layout_width="180dp"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"
+
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+
+            android:scaleType="fitXY" />
+    </LinearLayout>
+    </LinearLayout>
+
+        <com.example.sticky_pi_data_harvester.DetailTable
+            android:id="@+id/detail_file_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

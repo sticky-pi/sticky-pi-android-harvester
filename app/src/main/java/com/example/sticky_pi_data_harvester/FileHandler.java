@@ -109,15 +109,19 @@ public class FileHandler extends Thread{
     }
 
     void index_files(){
+        index_files(null);
+    }
+    void index_files(ArrayList<ImageRep> out){
         int tmp_n_jpg_images = 0;
         int tmp_n_traced_jpg_images = 0;
         int tmp_n_trace_images = 0;
         long tmp_disk_used = 0;
         long most_recent_seen = 0;
 
-        File directory = new File(m_directory);
-//        List<File> imgs = new ArrayList<>();
 
+//        ArrayList<ImageRep> out = new ArrayList<>();
+
+        File directory = new File(m_directory);
 
         File[] day_dirs = directory.listFiles();
         if(day_dirs != null) {
@@ -136,18 +140,26 @@ public class FileHandler extends Thread{
                     for (File img_or_trace : images) {
                         if (img_or_trace.getName().endsWith(".jpg")) {
                             tmp_n_jpg_images += 1;
+                            long datetime = parse_date(img_or_trace.getName());
+
                             if (new File(img_or_trace.getPath() + ".trace").isFile()) {
                                 tmp_n_traced_jpg_images += 1;
 
                             }
-                            long latest_seen = parse_date(img_or_trace.getName());
-                            if (latest_seen > most_recent_seen) {
-                                most_recent_seen = latest_seen;
+                            else{
+                                // untraced jpg.
+                                //can use for unique timestamp
+                                if(out != null)
+                                    out.add(new ImageRep(m_directory, device_id, datetime));
+                            }
+                            if (datetime > most_recent_seen) {
+                                most_recent_seen = datetime;
                             }
                             tmp_disk_used += img_or_trace.length();
                         }
                         if (img_or_trace.getName().endsWith(".trace")) {
                             tmp_n_trace_images += 1;
+
                         }
                     }
                 }

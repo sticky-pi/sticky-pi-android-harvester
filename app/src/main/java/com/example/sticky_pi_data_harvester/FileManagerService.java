@@ -36,6 +36,11 @@ public class FileManagerService extends Service {
     Updater updater;
     final int DEVICE_TABLE_UPDATE_PERIOD = 10; // s
     ArrayList<FileHandler> file_handler_list = new ArrayList<FileHandler>();
+
+    public File getStorage_dir() {
+        return storage_dir;
+    }
+
     File storage_dir = null;
     boolean delete_uploaded_images = false;
     APIClient api_client;
@@ -114,13 +119,14 @@ public class FileManagerService extends Service {
 
     private void update_network_status(){
         has_internet = is_domain_up("google.com");
-        is_host_up = is_domain_up(api_client.get_api_host());
-        try {
-            are_credentials_valid = api_client.get_token();
-        }
-        catch (Exception e) {
-            Log.e(TAG, String.valueOf(e));
-            are_credentials_valid = false;
+        if(has_internet) {
+            is_host_up = is_domain_up(api_client.get_api_host());
+            try {
+                are_credentials_valid = api_client.get_token();
+            } catch (Exception e) {
+                Log.e(TAG, String.valueOf(e));
+                are_credentials_valid = false;
+            }
         }
     }
 

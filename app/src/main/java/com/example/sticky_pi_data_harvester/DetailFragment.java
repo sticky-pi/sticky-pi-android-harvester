@@ -1,7 +1,10 @@
 package com.example.sticky_pi_data_harvester;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -17,6 +20,7 @@ import android.widget.FrameLayout;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import com.example.sticky_pi_data_harvester.databinding.FragmentDetailBinding;
@@ -25,10 +29,15 @@ import com.example.sticky_pi_data_harvester.databinding.FragmentImageFilesBindin
 import org.w3c.dom.Text;
 
 import java.io.File;
+import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Hashtable;
+import java.util.Locale;
 import java.util.Objects;
+
+import de.codecrafters.tableview.listeners.TableDataClickListener;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -42,6 +51,11 @@ public class DetailFragment extends Fragment {
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
     private @NonNull FragmentDetailBinding binding;
+    private DetailTableAdapter adapter;
+    private String root_img_dir;
+    private String devId;
+    public ViewGroup view_group;
+
     FileManagerService file_manager_service;
     ArrayList<FileHandler> file_handler_list = null;
 
@@ -85,19 +99,27 @@ public class DetailFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-
+        view_group = container;
         View inflatedView = inflater.inflate(R.layout.fragment_detail, container,false);
+        binding = FragmentDetailBinding.inflate(inflater, container, false);
 
         MainActivity main_activity = (MainActivity) getActivity();
         file_manager_service = main_activity.get_file_manager_service();
-        TextView t = (TextView) inflatedView.findViewById(R.id.device_id);
+        TextView device_id = (TextView) binding.getRoot().findViewById(R.id.device_id);
+
+
         if (file_manager_service == null) {
-            t.setText("No file manager found");
+            device_id.setText("Issue connecting to file\nservice manager!");
             return inflatedView;
         }
+
         file_handler_list = file_manager_service.get_file_handler_list();
-        String devId =  getArguments().getString("a");
-        t.setText("Current device: " + devId);
+        devId =  getArguments().getString("a");
+        root_img_dir = file_manager_service.getStorage_dir().getPath() + "/" + devId ;
+
+        device_id.setText( devId);
+        device_id.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+
 
         FileHandler fileHandler = null;
         for (FileHandler fh: file_handler_list) {
@@ -105,34 +127,118 @@ public class DetailFragment extends Fragment {
                 fileHandler = fh;
             }
         }
+
         if (fileHandler == null ) {
-            t.setText("No file handler for device " + devId);
+            device_id.setText("Cannot find file handler for device: "+ devId+ "\n Maybe no images?");
             return inflatedView;
         }
-        fileHandler.index_files();
-        int n_jpg_images = fileHandler.get_n_jpg_images();
-        int n_traced_jpg_images = fileHandler.get_n_traced_jpg_images();
 
-        TextView n_jpg = (TextView) inflatedView.findViewById(R.id.n_jpgs);
-        n_jpg.setText("Number of local images: "+ n_jpg_images);
-        TextView n_traced = (TextView) inflatedView.findViewById(R.id.n_traces);
-        n_traced.setText("Number of traced images: " + n_traced_jpg_images);
-
-        ImageView latest_image = (ImageView) inflatedView.findViewById(R.id.detailed_image);
+        ArrayList<ImageRep> all_img_reps = new ArrayList<>();
+        fileHandler.index_files(all_img_reps);
 
 
-        File root_dir = file_manager_service.getApplicationContext().getExternalFilesDir(null);
-        ImageRep img = new ImageRep(root_dir.getPath(), fileHandler.get_device_id(), fileHandler.get_last_seen());
-        String path = img.getImagePath(root_dir.getPath(),fileHandler.get_device_id());
-        if(path.compareTo("") != 0) {
-            Uri img_uri=Uri.parse(path);
-            latest_image.setImageURI(img_uri);
+        TextView n_jpg = (TextView) binding.getRoot().findViewById(R.id.n_jpgs);
+        n_jpg.setText("Local images: "+ fileHandler.get_n_jpg_images());
+
+        int denom = fileHandler.get_n_jpg_images() + fileHandler.get_n_trace_images() - fileHandler.get_n_traced_jpg_images();
+        String percent_up;
+        if(denom >0) {
+            percent_up = String.valueOf(String.format(
+                    "%.01f",
+                    (100.0 * fileHandler.get_n_trace_images()) / (float) denom
+            ));
+        }
+        else {
+            percent_up = "NA";
+        }
+        TextView percent_up_text = (TextView) binding.getRoot().findViewById(R.id.percent_up);
+        percent_up_text.setText("% uploaded: "+ percent_up);
+
+
+        if(all_img_reps.size() == 0)
+            return inflatedView;
+        all_img_reps.sort(new Comparator<ImageRep>() {
+            @Override
+            public int compare(ImageRep o1, ImageRep o2) {
+                if (o1.getTime() < o2.getTime()) {
+                    return 1;
+                } else if (o1.getTime() > o2.getTime()) {
+                    return -1;
+                }
+                return 0;
+            }
+        });
+
+
+        update_displayed_image(all_img_reps.get(0));
+
+
+
+        final DetailTable tableView = (DetailTable) binding.getRoot().findViewById(R.id.detail_file_list);
+
+        if (tableView != null) {
+            adapter = new DetailTableAdapter(main_activity, all_img_reps, devId);
+            tableView.setDataAdapter(adapter);
+            tableView.setClickable(true);
+
+
+            tableView.addDataClickListener(new TableDataClickListener<ImageRep>() {
+                @Override
+                public void onDataClicked(final int row_index, final ImageRep rep) {
+                    update_displayed_image(rep);
+                    ((DetailTableAdapter) tableView.getDataAdapter()).setSelectedRowIdx(row_index);
+                    tableView.getDataAdapter().notifyDataSetChanged();
+                }
+            });
+
         }
 
-        return inflatedView;
+        return binding.getRoot();
     }
 
+    public  void update_displayed_image(ImageRep rep){
 
+        // here, sort
+        ImageView displayed_img = (ImageView) binding.getRoot().findViewById(R.id.detail_thumbnail);
+
+        String uri_candidate_thumb = rep.getImgThumbnailPath(root_img_dir, devId);
+        String uri_candidate = rep.getImagePath(root_img_dir, devId);
+        String file_name =  new File(uri_candidate).getName();
+
+        TextView detail_img_filename  = (TextView) binding.getRoot().findViewById(R.id.detail_img_filename);
+
+        detail_img_filename.setText(file_name);
+
+        if(new File(uri_candidate_thumb).isFile()) {
+            Uri thumb_uri=Uri.parse(uri_candidate_thumb);
+            displayed_img.setImageURI(thumb_uri);
+
+            displayed_img.setOnClickListener(
+                    new View.OnClickListener() {
+                        public void onClick(View v) {
+                            if(new File(uri_candidate).isFile()){
+                                Intent intent = new Intent();
+                                intent.setAction(Intent.ACTION_VIEW);
+
+                                Uri img_uri=Uri.parse(uri_candidate);
+                                intent.setDataAndType(img_uri, "image/*");
+                                startActivity(intent);
+                            }
+                            else{
+                                MainActivity main_activity = (MainActivity) getActivity();
+                                Toast.makeText(main_activity, "No local image for",
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    }
+            );
+
+        }
+        else {
+            displayed_img.setImageResource(R.drawable.ic_no_thumbnail);
+        }
+
+    }
     @Override
     public void onDestroyView() {
         super.onDestroyView();
