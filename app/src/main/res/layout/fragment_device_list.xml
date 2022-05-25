@@ -96,12 +96,8 @@
 
             android:layout_weight="20"
             />
-
-        
     </LinearLayout>
 
-
-<!--    </RelativeLayout>-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 
