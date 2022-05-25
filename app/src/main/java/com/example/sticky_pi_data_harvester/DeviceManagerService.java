@@ -6,6 +6,7 @@ import android.Manifest;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 import android.location.Criteria;
@@ -15,9 +16,12 @@ import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Binder;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
@@ -48,6 +52,8 @@ public class DeviceManagerService extends Service {
     Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
     Context gps_context;
     File storage_dir = null;
+    Toast gps_error_toast;
+    final int GPS_TOAST_DURATION = 10000; // ms
 
 
     public Location get_location() {
@@ -97,6 +103,42 @@ public class DeviceManagerService extends Service {
         }
     }
 
+    public void show_gps_toast(String msg) {
+
+
+        CountDownTimer toastCountDown;
+        if(gps_error_toast != null) {
+            gps_error_toast.cancel();
+            gps_error_toast = null;
+        }
+
+        toastCountDown = new CountDownTimer(GPS_TOAST_DURATION, 100 /*Tick duration*/) {
+
+            public void onTick(long millisUntilFinished) {
+                SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
+
+                boolean enforce_gps =  sharedpreferences.getBoolean("preference_enforce_gps", true);
+                if(location == null  && enforce_gps) {
+                    gps_error_toast = Toast.makeText(DeviceManagerService.this.getApplicationContext(), msg, Toast.LENGTH_LONG);
+                    gps_error_toast.show();
+                }
+                else {
+                    if(gps_error_toast != null)
+                        gps_error_toast.cancel();
+                    gps_error_toast = null;
+                    this.cancel();
+                }
+
+            }
+            public void onFinish() {
+                if(gps_error_toast != null)
+                    gps_error_toast.cancel();
+
+            }
+        };
+        toastCountDown.start();
+    }
+
     public void initializeDiscoveryListener() {
         spiDiscoveryListener = new NsdManager.DiscoveryListener() {
             @Override
@@ -144,6 +186,22 @@ public class DeviceManagerService extends Service {
                     @Override
                     public void onServiceResolved(NsdServiceInfo serviceInfo) {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
+                        SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
+
+                        boolean enforce_gps =  sharedpreferences.getBoolean("preference_enforce_gps", true);
+                        // https://github.com/sticky-pi/sticky-pi-android-harvester/issues/6
+                        if(location == null && enforce_gps){
+                            String[] service_name_fields = serviceInfo.getServiceName().split("-");
+                            String device_id = "undefined";
+                            if(service_name_fields.length > 1){
+                                device_id = service_name_fields[1];
+                            }
+                            String msg = "Detected device " + device_id + ", but GPS location is unavailable. " +
+                                    "Wait or override in the app's settings.";
+                            Log.e(TAG, msg);
+                            show_gps_toast(msg);
+                            return;
+                        }
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
 
@@ -243,7 +301,6 @@ public class DeviceManagerService extends Service {
 
     @Override
     public boolean onUnbind(Intent intent) {
-        Log.d("TODEL", "unbinding device manager");
         stopSelf();
         return false;
     }
