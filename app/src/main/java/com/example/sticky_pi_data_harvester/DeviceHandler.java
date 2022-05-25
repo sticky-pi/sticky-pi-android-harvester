@@ -50,11 +50,13 @@ public class DeviceHandler extends Thread {
     final static double MAX_LIPO_VOLTAGE = 4.2;
     final static double MIN_LIPO_VOLTAGE = 3.5;
     final static long KEEP_ALIVE_TIMEOUT = 30;
+    final static long INTERNAL_TIMEOUT = 60; // error if device not seen in this time in seconds
 
     // ghosts are persistent device status used to populate the initial view
     protected boolean is_ghost = false;
 
     long last_keep_alive = 0;
+    long internal_pacemaker = 0;
     private Location location;
     String host_address;
     String device_id;
@@ -176,12 +178,23 @@ public class DeviceHandler extends Thread {
     }
 
     public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        try (InputStream is = new URL(url).openStream()) {
+
+        URLConnection connection = new URL(url).openConnection();
+        JSONObject json  = null;
+        try  {
+            connection.setConnectTimeout(1000);
+            InputStream is = connection.getInputStream();
             BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
             String jsonText = readAll(rd);
-            JSONObject json = new JSONObject(jsonText);
-            return json;
+            json = new JSONObject(jsonText);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e(TAG,"IO exception" );
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Log.e(TAG,"JSON exception" );
         }
+        return json;
     }
     public static boolean createDirIfNotExists(String path) {
         boolean ret = true;
@@ -230,6 +243,8 @@ public class DeviceHandler extends Thread {
     private  boolean get_log() {
         try {
             JSONObject json = readJsonFromUrl(log_url.toString());
+            if(json== null)
+                return false;
             String log = target_dir + "/" + device_id +".log";
             String tmp_log = log + "~";
             File tmp_file = new File(tmp_log);
@@ -259,6 +274,8 @@ public class DeviceHandler extends Thread {
     private  boolean get_metadata() {
         try {
             JSONObject out = readJsonFromUrl(status_url.toString());
+            if(out== null)
+                return false;
             device_id = out.getString("device_id");
             version = out.getString("version");
             device_datetime  = (long) out.getDouble("datetime");
@@ -443,6 +460,8 @@ public class DeviceHandler extends Thread {
         try {
             Log.w(TAG, "URL: " + images_url.toString());
             JSONObject out = readJsonFromUrl(images_url.toString());
+            if(out== null)
+                return false;
             Iterator<String> it = out.keys();
             n_to_download = 0;
             // todo images by date sort here
@@ -472,6 +491,8 @@ public class DeviceHandler extends Thread {
                     get_single_image(image_url, target_dir + "/" + day_str + "/" + filename, hash, 0);
                     write_persistent_device_status();
                     long now =  Instant.now().getEpochSecond();
+                    internal_pacemaker = Instant.now().getEpochSecond();
+
                     if (now - last_keep_alive > KEEP_ALIVE_TIMEOUT) {
                         last_keep_alive = now;
                         keep_alive();
@@ -480,7 +501,7 @@ public class DeviceHandler extends Thread {
             }
 
             executor.shutdown();
-            executor.awaitTermination(15, TimeUnit.MINUTES);
+            executor.awaitTermination(INTERNAL_TIMEOUT, TimeUnit.SECONDS);
         } catch (IOException | JSONException | InterruptedException e) {
             e.printStackTrace();
             return false;
@@ -504,6 +525,9 @@ public class DeviceHandler extends Thread {
             conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
+
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -562,6 +586,9 @@ public class DeviceHandler extends Thread {
             conn = (HttpURLConnection) metadata_url.openConnection();
 
             conn.setRequestMethod("POST");
+
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -618,9 +645,8 @@ public class DeviceHandler extends Thread {
     public void run() {
         createDirIfNotExists(target_dir);
 
-        //todo timeout here
-        while (true){
-                Log.i(TAG, "Running: " + device_id + ", " + host_address + ":"+ port);
+        internal_pacemaker = Instant.now().getEpochSecond();
+        while (Instant.now().getEpochSecond() - internal_pacemaker < INTERNAL_TIMEOUT){
                 try {
                     sleep(1000);
                 } catch (InterruptedException e) {
@@ -629,7 +655,7 @@ public class DeviceHandler extends Thread {
 
                 if (! get_metadata())
                     continue;
-
+                internal_pacemaker = Instant.now().getEpochSecond();
                 // delete local files on mock devices
                 if(is_mock)
                     delete_local_files();
@@ -657,9 +683,12 @@ public class DeviceHandler extends Thread {
                 }
                 else {
                     status = "errored";
+                    Log.e(TAG, "Device "+ device_id + " errored");
+                    return;
                 }
-            return;
         }
+        status = "errored";
+        Log.e(TAG, "Device "+ device_id + " timeout");
     }
 
 

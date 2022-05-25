@@ -152,7 +152,14 @@ public class DeviceAdapter extends BaseAdapter {
             holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
         }
         else {
-            holder.rectangle.setBackgroundResource(R.drawable.rectangle);
+            if(device_handler.get_status().equals("starting"))
+                holder.rectangle.setBackgroundColor(Color.parseColor("#8888bb"));
+            else  if(device_handler.get_status().equals("syncing"))
+                holder.rectangle.setBackgroundColor(Color.parseColor("#88bbbb"));
+            else if(device_handler.get_status().equals("done"))
+                holder.rectangle.setBackgroundColor(Color.parseColor("#88bb88"));
+            else
+                holder.rectangle.setBackgroundColor(Color.parseColor("#bbbbbb"));
         }
 
         holder.device_id.setText(device_handler.get_device_id());
@@ -162,6 +169,7 @@ public class DeviceAdapter extends BaseAdapter {
                         "(" + device_handler.get_n_skipped()+ ")";
 
         holder.downloaded_files.setText(txt);
+
         if(device_handler.get_n_errored() > 0)
             holder.downloaded_files.setTextColor(Color.parseColor("#FF0000"));
         else
@@ -188,18 +196,26 @@ public class DeviceAdapter extends BaseAdapter {
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
 
         }else if((device_handler.get_status().equals("starting"))){
-            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_battery_2_bar_12, 0);
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
         }else{
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_error_12, 0);
         }
         holder.available_disk_space.setText(String.format("%.2f", device_handler.get_available_disk_space()) + "%" );
-        String img_path =device_handler.get_last_image_path() + ".thumbnail";
+        String img_path = device_handler.get_last_image_path() + ".thumbnail";
 
         if(new File(img_path).isFile()) {
             Uri img_uri=Uri.parse(img_path);
             holder.last_image.setImageURI(img_uri);
         }
+        else{
+            if(device_handler.get_status().equals("errored")){
 
+                holder.last_image.setImageResource(R.drawable.ic_thumbnail_errored_sync);
+            }
+            else {
+                holder.last_image.setImageResource(R.drawable.ic_thumbnail_syncing);
+            }
+        }
         return convertView;
     }
 
