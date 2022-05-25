@@ -120,8 +120,10 @@ public class DetailFragment extends Fragment {
 
         ImageView latest_image = (ImageView) inflatedView.findViewById(R.id.detailed_image);
 
-        ImageRep img = new ImageRep(file_manager_service, fileHandler.get_device_id(), fileHandler.get_last_seen());
-        String path = img.getImagePath(file_manager_service,fileHandler.get_device_id());
+
+        File root_dir = file_manager_service.getApplicationContext().getExternalFilesDir(null);
+        ImageRep img = new ImageRep(root_dir.getPath(), fileHandler.get_device_id(), fileHandler.get_last_seen());
+        String path = img.getImagePath(root_dir.getPath(),fileHandler.get_device_id());
         if(path.compareTo("") != 0) {
             Uri img_uri=Uri.parse(path);
             latest_image.setImageURI(img_uri);
