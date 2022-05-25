@@ -40,7 +40,7 @@ public class FileTableAdapter extends TableDataAdapter<FileHandler> {
                 else {
                     percent_up = "NA";
                 }
-                String n_img = String.valueOf(fh.get_n_jpg_images() + fh.get_n_trace_images());
+                String n_img = String.valueOf(denom);
                 renderedView = renderString(n_img + " (" + percent_up + "%⬆)");
                 break;
             case 2:

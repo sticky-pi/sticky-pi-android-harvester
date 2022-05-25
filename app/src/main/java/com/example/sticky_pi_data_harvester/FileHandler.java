@@ -1,7 +1,5 @@
 package com.example.sticky_pi_data_harvester;
 
-import android.text.TextUtils;
-import android.util.JsonReader;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -18,23 +16,17 @@ import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigInteger;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.Executors;
@@ -54,6 +46,17 @@ public class FileHandler extends Thread{
     int n_trace_images = 0;
     long disk_used = 0;
     boolean m_delete_uploaded_images = false;
+    boolean paused = false;
+
+
+    public void pause() {
+        this.paused = true;
+    }
+    public void resume_run() {
+        this.paused = false;
+    }
+
+    boolean isPaused() {return this.paused;}
 
     SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
     SimpleDateFormat day_formatter = new SimpleDateFormat("yyyy-MM-dd");
@@ -159,7 +162,10 @@ public class FileHandler extends Thread{
                         }
                         if (img_or_trace.getName().endsWith(".trace")) {
                             tmp_n_trace_images += 1;
-
+                            if(out != null) {
+                                long datetime = parse_date(img_or_trace.getName());
+                                out.add(new ImageRep(m_directory, device_id, datetime));
+                            }
                         }
                     }
                 }
@@ -333,8 +339,9 @@ public class FileHandler extends Thread{
         File[] day_dir = directory.listFiles();
         if (day_dir != null) {
             for(File d: day_dir){
-                if(!d.isDirectory())
+                if(!d.isDirectory()) {
                     continue;
+                }
                 upload_all_jpg_in_day_dir(d);
             }
         }
@@ -359,6 +366,7 @@ public class FileHandler extends Thread{
                 if (fields.length > 2) {
                     try {
                         Date date = date_formatter.parse(fields[1]);
+                        image_timestamps.add(date.getTime());
                         } catch (ParseException e) {
                         Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ")");
                         e.printStackTrace();
@@ -406,9 +414,14 @@ public class FileHandler extends Thread{
     @Override
     public void run() {
         while (true){
-            upload_all_jpg();
             try {
                 sleep(10000);
+            if(paused){
+                sleep(1000);
+                continue;
+            }
+            upload_all_jpg();
+
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

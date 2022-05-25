@@ -23,6 +23,7 @@
         android:orientation="vertical"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        android:gravity="center"
         >
 
 
@@ -85,16 +86,20 @@
         </RelativeLayout>
 
         <GridView
-            android:id="@+id/device_grid_view"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:numColumns="3"
-            android:stretchMode="columnWidth"
 
-            android:layout_weight="20"
+            android:id="@+id/device_grid_view"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            android:layout_marginStart="8dp"
+            android:numColumns="3"
+            android:gravity="center"
+            android:stretchMode="columnWidth"
+            android:verticalSpacing="8dp"
+            android:horizontalSpacing="8dp"
+            android:layout_weight="100"
             />
     </LinearLayout>
 

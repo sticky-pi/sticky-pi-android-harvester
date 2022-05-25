@@ -146,7 +146,6 @@ public class DeviceManagerService extends Service {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
-                        Log.e("FIXME", "Thread updater: "+ debug_i++ + " " + Thread.currentThread());
 
                         if (device_dict.containsKey(dev_handl.get_device_id())) {
 

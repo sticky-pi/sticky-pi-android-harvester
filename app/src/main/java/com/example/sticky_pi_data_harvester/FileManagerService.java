@@ -79,31 +79,50 @@ public class FileManagerService extends Service {
     }
 
 
-    private void update_device_file_table(boolean start_upload){
+    private void update_device_file_table(boolean start_upload, boolean pause_handlers){
+
         File directory = new File(String.valueOf(storage_dir));
         File[] device_dirs = directory.listFiles();
-        for (File dir : device_dirs) {
-            if(dir.isDirectory()){
-                if(! is_device_handled(dir.getName())){
-                    FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
-                    file_handler_list.add(file_handler);
+            for (File dir : device_dirs) {
+                if (dir.isDirectory()) {
+                    if (!is_device_handled(dir.getName())) {
+                        FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
+                        file_handler_list.add(file_handler);
+                    }
                 }
             }
+            // in case user ticked/unticked option, we set it here
+            for (FileHandler fh : file_handler_list) {
+                fh.set_delete_uploaded_images(delete_uploaded_images);
+            }
+
+        if(! pause_handlers) {
+            if (file_handler_list != null && start_upload) {
+                for (FileHandler fh : file_handler_list) {
+
+                    if (!fh.isAlive()) {
+                    fh.start();
+                    }
+                    if(!fh.isPaused()){
+                        fh.resume_run();
+                    }
+                }
+            }
+
+            if (start_upload)
+                last_device_table_update = System.currentTimeMillis() / 1000;
         }
-        // in case user ticked/unticked option, we set it here
-        for(FileHandler fh: file_handler_list){
-            fh.set_delete_uploaded_images(delete_uploaded_images);
+        else{
+            if (file_handler_list != null) {
+                for (FileHandler fh : file_handler_list) {
+                    if (fh.isAlive()) {
+                        fh.pause();
+                    }
+                }
+            }
+
         }
 
-        if(file_handler_list != null && start_upload){
-            for(FileHandler fh: file_handler_list){
-                if( !fh.isAlive()){
-                    fh.start();
-                }
-            }
-        }
-        if(start_upload)
-            last_device_table_update = System.currentTimeMillis() / 1000;
     }
     public boolean is_domain_up(String domain) {
         try {
@@ -140,7 +159,7 @@ public class FileManagerService extends Service {
         public void run(){
 //            int i = 0;
             while(true){
-//                Log.e("FIXME", "Thread updater: "+ i++ + " " + Thread.currentThread());
+//                Log.e("ME", "Thread updater: "+ i++ + " " + Thread.currentThread());
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
                 String api_host =  sharedpreferences.getString("preference_api_host", "");
                 String user_name =  sharedpreferences.getString("preference_user_name", "");
@@ -174,12 +193,10 @@ public class FileManagerService extends Service {
 
                 update_network_status();
                 long now = System.currentTimeMillis() / 1000;
-                boolean upload_files = (now - last_device_table_update) > DEVICE_TABLE_UPDATE_PERIOD &&
-                                //fixed
-                                has_internet  &&
-                                are_credentials_valid  &&
-                                is_host_up;
-                    update_device_file_table(upload_files);
+                boolean upload_files = (now - last_device_table_update) > DEVICE_TABLE_UPDATE_PERIOD;
+                boolean pause_handlers = !(has_internet  && are_credentials_valid  && is_host_up);
+
+                update_device_file_table(upload_files, pause_handlers);
                 try {
                     sleep(1000);
                 } catch (InterruptedException e) {

@@ -55,6 +55,7 @@ public class DetailFragment extends Fragment {
     private String root_img_dir;
     private String devId;
     public ViewGroup view_group;
+    static final String TAG =  "DetailFragment";
 
     FileManagerService file_manager_service;
     ArrayList<FileHandler> file_handler_list = null;
@@ -107,10 +108,10 @@ public class DetailFragment extends Fragment {
         file_manager_service = main_activity.get_file_manager_service();
         TextView device_id = (TextView) binding.getRoot().findViewById(R.id.device_id);
 
-
         if (file_manager_service == null) {
             device_id.setText("Issue connecting to file\nservice manager!");
-            return inflatedView;
+            Log.e(TAG, "Issue connecting to file\nservice manager!");
+            return binding.getRoot();
         }
 
         file_handler_list = file_manager_service.get_file_handler_list();
@@ -130,7 +131,8 @@ public class DetailFragment extends Fragment {
 
         if (fileHandler == null ) {
             device_id.setText("Cannot find file handler for device: "+ devId+ "\n Maybe no images?");
-            return inflatedView;
+            Log.e(TAG, "Cannot find file handler for device: "+ devId+ "\n Maybe no images?");
+            return binding.getRoot();
         }
 
         ArrayList<ImageRep> all_img_reps = new ArrayList<>();
@@ -155,8 +157,10 @@ public class DetailFragment extends Fragment {
         percent_up_text.setText("% uploaded: "+ percent_up);
 
 
-        if(all_img_reps.size() == 0)
-            return inflatedView;
+        if(all_img_reps.size() == 0) {
+            Log.e(TAG, "No images for " + devId);
+            return binding.getRoot();
+        }
         all_img_reps.sort(new Comparator<ImageRep>() {
             @Override
             public int compare(ImageRep o1, ImageRep o2) {
@@ -171,8 +175,6 @@ public class DetailFragment extends Fragment {
 
 
         update_displayed_image(all_img_reps.get(0));
-
-
 
         final DetailTable tableView = (DetailTable) binding.getRoot().findViewById(R.id.detail_file_list);
 

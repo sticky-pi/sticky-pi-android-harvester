@@ -91,6 +91,7 @@ public class APIClient {
 
 
     private Object api_call_wrapped(Object payload, String endpoint, String username, String password, int retries){
+        Log.d(TAG, "api_call_wrapped: " + endpoint + ", "+ payload);
         if(retries >= MAX_RETRIES){
             throw new MaxRetriesError("Too many failed requests");
         }
