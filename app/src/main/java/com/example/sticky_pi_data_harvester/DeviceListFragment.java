@@ -87,10 +87,6 @@ public class DeviceListFragment extends Fragment {
 
     }
 
-
-
-
-
     private Runnable mUpdateTimeTask = new Runnable() {
         public void run() {
             try {

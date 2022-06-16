@@ -32,6 +32,7 @@ import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileHandler extends Thread{
     static final String TAG = "FileHandler";
@@ -44,10 +45,14 @@ public class FileHandler extends Thread{
     int n_jpg_images = 0;
     int n_traced_jpg_images = 0;
     int n_trace_images = 0;
+    int n_errored_jpg_images = 0;
+
+    AtomicInteger n_uploaded_progress;
     long disk_used = 0;
     boolean m_delete_uploaded_images = false;
     boolean paused = false;
 
+    String upload_status = "starting";
 
     public void pause() {
         this.paused = true;
@@ -57,9 +62,6 @@ public class FileHandler extends Thread{
     }
 
     boolean isPaused() {return this.paused;}
-
-    SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-    SimpleDateFormat day_formatter = new SimpleDateFormat("yyyy-MM-dd");
 
     // private DeviceHandler devH = new DeviceHandler();
 
@@ -73,8 +75,6 @@ public class FileHandler extends Thread{
         last_img_seen = 0;
         m_api_client = api_client;
         m_delete_uploaded_images = delete_uploaded_images;
-        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
-        day_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
 
     void delete_all_traces() {
@@ -106,17 +106,26 @@ public class FileHandler extends Thread{
     long get_last_seen(){return last_img_seen;}
     int get_n_jpg_images(){return n_jpg_images;}
     int get_n_traced_jpg_images(){return n_traced_jpg_images;}
+    int get_n_errored_jpg_images(){return n_errored_jpg_images;}
     int get_n_trace_images(){return n_trace_images;}
+    String get_upload_status(){
+        if(n_uploaded_progress == null)
+            return "starting";
+        return String.format( "%d/%d", n_uploaded_progress.get() - n_traced_jpg_images , n_jpg_images - n_traced_jpg_images);
+
+    }
     long get_disk_use(){
         return disk_used ;
     }
 
     void index_files(){
+
         index_files(null);
     }
     void index_files(ArrayList<ImageRep> out){
         int tmp_n_jpg_images = 0;
         int tmp_n_traced_jpg_images = 0;
+        int tmp_n_errored_jpg_images = 0;
         int tmp_n_trace_images = 0;
         long tmp_disk_used = 0;
         long most_recent_seen = 0;
@@ -154,6 +163,9 @@ public class FileHandler extends Thread{
                                 //can use for unique timestamp
                                 if(out != null)
                                     out.add(new ImageRep(m_directory, device_id, datetime));
+                                if (new File(img_or_trace.getPath() + ".error").isFile()) {
+                                    tmp_n_errored_jpg_images += 1;
+                                }
                             }
                             if (datetime > most_recent_seen) {
                                 most_recent_seen = datetime;
@@ -166,6 +178,7 @@ public class FileHandler extends Thread{
                                 long datetime = parse_date(img_or_trace.getName());
                                 out.add(new ImageRep(m_directory, device_id, datetime));
                             }
+
                         }
                     }
                 }
@@ -174,6 +187,7 @@ public class FileHandler extends Thread{
         disk_used = tmp_disk_used;
         n_jpg_images = tmp_n_jpg_images;
         n_traced_jpg_images = tmp_n_traced_jpg_images;
+        n_errored_jpg_images = tmp_n_errored_jpg_images;
         n_trace_images = tmp_n_trace_images;
         last_img_seen = most_recent_seen;
     }
@@ -218,7 +232,19 @@ public class FileHandler extends Thread{
             }
         }
     }
-
+    void writeErrorForFile(File error, String message){
+        if(error.isFile())
+            return;
+        File tmp_file = new File(error.getPath() + "~");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(tmp_file))) {
+            writer.write(message + "\n");
+            writer.flush();
+            writer.close();
+            tmp_file.renameTo(error);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     void writeTraceForFile(File trace, File image, String hash, boolean delete_parent){
         File tmp_file = new File(trace.getPath() + "~");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(tmp_file))) {
@@ -250,12 +276,21 @@ public class FileHandler extends Thread{
 
 
     private void upload_one_jpg(long timestamp){
+
+
+        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+
         String date = date_formatter.format(new Date(timestamp));
-        String day_str = day_formatter.format(new Date(timestamp));
+        String day_str = date.substring(0, 10);
         String img_path = m_directory + "/" + day_str + "/" +device_id + "." + date + ".jpg";
         String trace_img_path = img_path + ".trace";
+        String error_img_path = img_path + ".error";
         File image = new File(img_path);
         File trace = new File(trace_img_path);
+        File error_file = new File(error_img_path);
+
         //todo, here we want some sort of file lock ?!
         String hash = DeviceHandler.compute_hash(trace_img_path);
         boolean delete_parent = should_delete_parent();
@@ -279,6 +314,8 @@ public class FileHandler extends Thread{
                 if(delete_parent){
                     image.delete();
                 }
+                if(error_file.isFile())
+                    error_file.delete();
                 return;
             }
             else {
@@ -287,8 +324,8 @@ public class FileHandler extends Thread{
             }
         }
 
-        if (!image.isFile()) {
-            Log.e(TAG, "Cannot find image to upload: " + img_path);
+        if (!image.exists()) {
+            Log.e(TAG, "Cannot find image to upload: " + img_path + ". Timestamp: " + timestamp);
             return;
         }
         String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
@@ -297,7 +334,6 @@ public class FileHandler extends Thread{
             JSONArray response = (JSONArray) m_api_client.api_call((Object) payload, "get_images/metadata");
             boolean to_upload = false;
             String md5 = calculateMD5(image);
-
 
             if (response.length() == 0) {
                 to_upload = true;
@@ -312,6 +348,8 @@ public class FileHandler extends Thread{
                 else {
                     Log.i(TAG, "Skipping file that exists on server: " + image.getName());
                     writeTraceForFile(trace, image, hash, delete_parent );
+                    if(error_file.isFile())
+                        error_file.delete();
                 }
             }
 
@@ -319,9 +357,12 @@ public class FileHandler extends Thread{
                 Log.i(TAG, "Uploading " + image.getName() + " (" + md5 + ")");
                 if(m_api_client.put_image(image, md5)){
                     writeTraceForFile(trace, image, hash, delete_parent);
+                    if(error_file.isFile())
+                        error_file.delete();
                 }
                 else {
                     Log.e(TAG, "Failed to upload: " + image.getName());
+                    writeErrorForFile(error_file, "Failed to upload");
                 }
 
             }
@@ -334,6 +375,9 @@ public class FileHandler extends Thread{
 
 
     private void upload_all_jpg(){
+        upload_status = "starting";
+        n_uploaded_progress = new AtomicInteger(0);
+        // todo make some sort of status here!
         File directory = new File(m_directory);
 
         File[] day_dir = directory.listFiles();
@@ -345,9 +389,15 @@ public class FileHandler extends Thread{
                 upload_all_jpg_in_day_dir(d);
             }
         }
+        upload_status = "done";
 
     }
     private void upload_all_jpg_in_day_dir(File directory) {
+        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+
+
         File[] images = directory.listFiles(new FilenameFilter() {
                                                 @Override
                                                 public boolean accept(File dir, String name) {
@@ -366,9 +416,11 @@ public class FileHandler extends Thread{
                 if (fields.length > 2) {
                     try {
                         Date date = date_formatter.parse(fields[1]);
-                        image_timestamps.add(date.getTime());
-                        } catch (ParseException e) {
-                        Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ")");
+                        long timestamp = date.getTime();
+                        image_timestamps.add(timestamp);
+
+                    } catch (ParseException e) {
+                        Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ").");
                         e.printStackTrace();
                     }
                 } else {
@@ -384,8 +436,9 @@ public class FileHandler extends Thread{
         for (long t : image_timestamps) {
             executor.submit( () -> {
                 upload_one_jpg(t);
-
+                n_uploaded_progress.incrementAndGet();
             });
+
         }
 
         executor.shutdown();

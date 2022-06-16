@@ -77,9 +77,9 @@ public class DeviceHandler extends Thread {
     long device_datetime;
     long time_created;
     int n_to_download = -1;
-    AtomicInteger n_downloaded = new AtomicInteger(0);
-    AtomicInteger n_skipped = new AtomicInteger( 0);
-    AtomicInteger n_errored = new AtomicInteger(0);
+    final AtomicInteger n_downloaded = new AtomicInteger(0);
+    final  AtomicInteger n_skipped = new AtomicInteger( 0);
+    final  AtomicInteger n_errored = new AtomicInteger(0);
     int battery_level=0;
 
     String version = "";
@@ -511,7 +511,7 @@ public class DeviceHandler extends Thread {
                         last_keep_alive = now;
                         keep_alive();
                     }
-//                    fixme.getAndIncrement();
+
                 }
                 );
 

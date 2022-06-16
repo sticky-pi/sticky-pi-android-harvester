@@ -158,8 +158,7 @@ public class FileManagerService extends Service {
         @Override
         public void run(){
 //            int i = 0;
-            while(true){
-//                Log.e("ME", "Thread updater: "+ i++ + " " + Thread.currentThread());
+            while(!isInterrupted()){
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
                 String api_host =  sharedpreferences.getString("preference_api_host", "");
                 String user_name =  sharedpreferences.getString("preference_user_name", "");
@@ -214,6 +213,12 @@ public class FileManagerService extends Service {
         // todo this is not stopped on close of the ap...?!
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if(updater != null)
+            updater.interrupt(); // could also use an observer
+    }
 
     @Override
     public IBinder onBind(Intent intent) {

@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -50,6 +51,7 @@ public class DetailFragment extends Fragment {
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
+    FileHandler fileHandler = null;
     private @NonNull FragmentDetailBinding binding;
     private DetailTableAdapter adapter;
     private String root_img_dir;
@@ -96,6 +98,7 @@ public class DetailFragment extends Fragment {
         }
     }
 
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -122,7 +125,7 @@ public class DetailFragment extends Fragment {
         device_id.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
 
 
-        FileHandler fileHandler = null;
+
         for (FileHandler fh: file_handler_list) {
             if(Objects.equals(fh.get_device_id(), devId)) {
                 fileHandler = fh;
@@ -139,22 +142,6 @@ public class DetailFragment extends Fragment {
         fileHandler.index_files(all_img_reps);
 
 
-        TextView n_jpg = (TextView) binding.getRoot().findViewById(R.id.n_jpgs);
-        n_jpg.setText("Local images: "+ fileHandler.get_n_jpg_images());
-
-        int denom = fileHandler.get_n_jpg_images() + fileHandler.get_n_trace_images() - fileHandler.get_n_traced_jpg_images();
-        String percent_up;
-        if(denom >0) {
-            percent_up = String.valueOf(String.format(
-                    "%.01f",
-                    (100.0 * fileHandler.get_n_trace_images()) / (float) denom
-            ));
-        }
-        else {
-            percent_up = "NA";
-        }
-        TextView percent_up_text = (TextView) binding.getRoot().findViewById(R.id.percent_up);
-        percent_up_text.setText("% uploaded: "+ percent_up);
 
 
         if(all_img_reps.size() == 0) {
@@ -195,6 +182,47 @@ public class DetailFragment extends Fragment {
 
         }
 
+
+        TextView n_jpg = (TextView) binding.getRoot().findViewById(R.id.n_jpgs);
+
+        n_jpg.setText("Local images: "+ fileHandler.get_n_jpg_images());
+
+        int denom = fileHandler.get_n_jpg_images() + fileHandler.get_n_trace_images() - fileHandler.get_n_traced_jpg_images();
+        String percent_up;
+        if(denom >0) {
+            percent_up = String.valueOf(String.format(
+                    "%.01f",
+                    (100.0 * fileHandler.get_n_trace_images()) / (float) denom
+            ));
+        }
+        else {
+            percent_up = "NA";
+        }
+
+
+        TextView percent_up_text = (TextView) binding.getRoot().findViewById(R.id.percent_up);
+        percent_up_text.setText("% uploaded: "+ percent_up);
+
+//
+        denom = fileHandler.get_n_jpg_images() + fileHandler.get_n_errored_jpg_images() - fileHandler.get_n_errored_jpg_images();
+        String percent_errored;
+        if(denom >0) {
+            percent_errored = String.valueOf(String.format(
+                    "%.01f",
+                    (100.0 * fileHandler.get_n_errored_jpg_images()) / (float) denom
+            ));
+        }
+        else {
+            percent_errored = "NA";
+        }
+
+        TextView percent_error_text = (TextView) binding.getRoot().findViewById(R.id.percent_errored);
+        percent_error_text.setText("% errored: "+ percent_errored);
+
+
+        TextView uploading_progress_text = (TextView) binding.getRoot().findViewById(R.id.uploading_progress);
+        uploading_progress_text.setText("Upload: "+ fileHandler.get_upload_status());
+        
         return binding.getRoot();
     }
 
