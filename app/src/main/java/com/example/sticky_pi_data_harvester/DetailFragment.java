@@ -221,8 +221,8 @@ public class DetailFragment extends Fragment {
 
 
         TextView uploading_progress_text = (TextView) binding.getRoot().findViewById(R.id.uploading_progress);
-        uploading_progress_text.setText("Upload: "+ fileHandler.get_upload_status());
-        
+        uploading_progress_text.setText("Uploading: "+ fileHandler.get_upload_status());
+
         return binding.getRoot();
     }
 
