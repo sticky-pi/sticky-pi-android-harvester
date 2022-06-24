@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import static java.lang.Thread.sleep;
 
@@ -8,27 +8,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
-import android.util.Base64;
 import android.util.Log;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
 import java.util.Objects;
 
 public class FileManagerService extends Service {

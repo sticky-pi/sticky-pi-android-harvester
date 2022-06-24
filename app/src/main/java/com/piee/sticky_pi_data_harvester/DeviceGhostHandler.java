@@ -1,8 +1,8 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class DeviceGhostHandler extends com.example.sticky_pi_data_harvester.DeviceHandler {
+public class DeviceGhostHandler extends DeviceHandler {
     JSONObject m_properties = null;
     public DeviceGhostHandler(JSONObject properties){
         super();

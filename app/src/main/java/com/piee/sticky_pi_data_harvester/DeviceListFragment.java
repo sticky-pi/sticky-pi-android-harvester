@@ -1,12 +1,11 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
-import static com.example.sticky_pi_data_harvester.MainActivity.MY_PERMISSIONS_REQUEST_LOCATION;
+import static com.piee.sticky_pi_data_harvester.MainActivity.MY_PERMISSIONS_REQUEST_LOCATION;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
@@ -14,7 +13,6 @@ import android.graphics.Bitmap;
 import android.location.Location;
 import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -28,7 +26,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.GridView;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,17 +33,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.fragment.NavHostFragment;
-import com.example.sticky_pi_data_harvester.databinding.FragmentDeviceListBinding;
+
+import com.piee.sticky_pi_data_harvester.R;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
+import com.piee.sticky_pi_data_harvester.databinding.FragmentDeviceListBinding;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Locale;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;

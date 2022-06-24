@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 
 import static java.lang.Thread.sleep;
@@ -27,9 +27,9 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
+import com.piee.sticky_pi_data_harvester.R;
+import com.piee.sticky_pi_data_harvester.databinding.ActivityMainBinding;
 
-import java.util.ArrayList;
 import java.util.Hashtable;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;

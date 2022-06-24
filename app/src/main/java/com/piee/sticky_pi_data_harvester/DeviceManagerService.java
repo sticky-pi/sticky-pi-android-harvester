@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import static java.lang.Thread.sleep;
 
@@ -17,7 +17,6 @@ import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Binder;
 import android.os.CountDownTimer;
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;

@@ -1,16 +1,12 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.io.File;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 
 import de.codecrafters.tableview.TableDataAdapter;
 

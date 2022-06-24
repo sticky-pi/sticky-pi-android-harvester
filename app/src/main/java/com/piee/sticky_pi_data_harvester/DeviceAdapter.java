@@ -1,7 +1,6 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -13,8 +12,9 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
+
+import com.piee.sticky_pi_data_harvester.R;
 
 import java.io.File;
 import java.lang.reflect.Field;

@@ -5,7 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".FileFragment">
+    tools:context="com.piee.sticky_pi_data_harvester.FileFragment">
 
 
 
@@ -46,7 +46,7 @@
 
     </LinearLayout>
 
-        <com.example.sticky_pi_data_harvester.FileSortableTable
+        <com.piee.sticky_pi_data_harvester.FileSortableTable
             android:id="@+id/file_list_view"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />

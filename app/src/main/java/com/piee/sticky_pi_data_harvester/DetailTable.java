@@ -1,14 +1,12 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 
 import android.content.Context;
 import android.util.AttributeSet;
 
-import de.codecrafters.tableview.SortableTableView;
 import de.codecrafters.tableview.TableView;
 import de.codecrafters.tableview.model.TableColumnWeightModel;
 import de.codecrafters.tableview.toolkit.SimpleTableHeaderAdapter;
-import de.codecrafters.tableview.toolkit.SortStateViewProviders;
 
 public class DetailTable extends TableView<ImageRep> {
 
