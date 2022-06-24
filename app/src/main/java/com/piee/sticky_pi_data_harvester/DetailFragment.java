@@ -1,41 +1,30 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.fragment.NavHostFragment;
 
 import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 
-import com.example.sticky_pi_data_harvester.databinding.FragmentDetailBinding;
-import com.example.sticky_pi_data_harvester.databinding.FragmentImageFilesBinding;
-
-import org.w3c.dom.Text;
+import com.piee.sticky_pi_data_harvester.R;
+import com.piee.sticky_pi_data_harvester.databinding.FragmentDetailBinding;
 
 import java.io.File;
-import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Hashtable;
-import java.util.Locale;
 import java.util.Objects;
 
 import de.codecrafters.tableview.listeners.TableDataClickListener;
@@ -53,6 +42,7 @@ public class DetailFragment extends Fragment {
     private static final String ARG_PARAM2 = "param2";
     FileHandler fileHandler = null;
     private @NonNull FragmentDetailBinding binding;
+
     private DetailTableAdapter adapter;
     private String root_img_dir;
     private String devId;

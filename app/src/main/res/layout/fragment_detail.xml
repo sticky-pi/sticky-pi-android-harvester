@@ -5,7 +5,7 @@
     android:id="@+id/frameLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".DetailFragment">
+    tools:context="com.piee.sticky_pi_data_harvester.DetailFragment">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -124,7 +124,7 @@
     </LinearLayout>
     </LinearLayout>
 
-        <com.example.sticky_pi_data_harvester.DetailTable
+        <com.piee.sticky_pi_data_harvester.DetailTable
             android:id="@+id/detail_file_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />

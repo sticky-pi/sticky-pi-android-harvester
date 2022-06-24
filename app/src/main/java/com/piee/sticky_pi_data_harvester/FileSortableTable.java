@@ -1,10 +1,8 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 
 import android.content.Context;
 import android.util.AttributeSet;
-
-import androidx.core.content.ContextCompat;
 
 import de.codecrafters.tableview.SortableTableView;
 import de.codecrafters.tableview.model.TableColumnWeightModel;

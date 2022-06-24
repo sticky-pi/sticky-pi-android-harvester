@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import android.content.Context;
 import android.view.View;
@@ -7,8 +7,6 @@ import android.widget.TextView;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
 
 import de.codecrafters.tableview.TableDataAdapter;
 
