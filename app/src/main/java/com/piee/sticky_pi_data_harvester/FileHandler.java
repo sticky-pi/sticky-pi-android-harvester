@@ -32,10 +32,14 @@ import java.util.TimeZone;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileHandler extends Thread{
     static final String TAG = "FileHandler";
+    static final String INDEX_FILENAME = "file_index.csv";
+
+
     long last_img_seen;
     String m_directory;
     String device_id;
@@ -48,6 +52,7 @@ public class FileHandler extends Thread{
     int n_errored_jpg_images = 0;
 
     AtomicInteger n_uploaded_progress;
+    AtomicBoolean is_reading_index_file;
     long disk_used = 0;
     boolean m_delete_uploaded_images = false;
     boolean paused = false;
@@ -67,10 +72,11 @@ public class FileHandler extends Thread{
 
     FileHandler(String directory, APIClient api_client, boolean delete_uploaded_images){
         super();
+        is_reading_index_file = new AtomicBoolean(false);
         m_directory = directory;
         //todo, set an observer to reindex/update on update
         device_id = new File(m_directory).getName();
-        index_files();
+        index_files(null, true);
         // this is a stub only
         last_img_seen = 0;
         m_api_client = api_client;
@@ -119,77 +125,145 @@ public class FileHandler extends Thread{
     }
 
     void index_files(){
-
-        index_files(null);
+        index_files(null, false);
     }
-    void index_files(ArrayList<ImageRep> out){
-        int tmp_n_jpg_images = 0;
-        int tmp_n_traced_jpg_images = 0;
-        int tmp_n_errored_jpg_images = 0;
-        int tmp_n_trace_images = 0;
-        long tmp_disk_used = 0;
-        long most_recent_seen = 0;
+    void index_files(ArrayList<ImageRep> out, boolean from_index_file){
+        File index_path = new File(new File(m_directory).getPath() + "/" + INDEX_FILENAME);
 
 
-//        ArrayList<ImageRep> out = new ArrayList<>();
+        if(from_index_file && index_path.isFile()) {
 
-        File directory = new File(m_directory);
+            try (BufferedReader br = new BufferedReader(new FileReader(index_path))) {
+                is_reading_index_file.set(true);
+                String line;
+                while ((line = br.readLine()) != null) {
+                    line = line.replace("\n", "").replace("\r", "");
+                    if(line.startsWith("#")) {
+                        line = line.substring(1);
+                        String[] values = line.split(",", 6);
+                        int i=0;
+                        disk_used = Long.parseLong(values[i++]);
+                        n_jpg_images = Integer.parseInt(values[i++]);
+                        n_traced_jpg_images = Integer.parseInt(values[i++]);
+                        n_errored_jpg_images = Integer.parseInt(values[i++]);
+                        n_trace_images = Integer.parseInt(values[i++]);
+                        last_img_seen = Long.parseLong(values[i++]);
 
-        File[] day_dirs = directory.listFiles();
-        if(day_dirs != null) {
-            for(File day_dir: day_dirs){
-                if(!day_dir.isDirectory()){
-                    continue;
-                }
-                File[] images = day_dir.listFiles(new FilenameFilter() {
-                                                        @Override
-                                                        public boolean accept(File dir, String name) {
-                                                            return name.matches("^(.*\\.jpg)|(.*\\.trace)$");
-                                                        }
-                                                    }
-                );
-                if (images != null) {
-                    for (File img_or_trace : images) {
-                        if (img_or_trace.getName().endsWith(".jpg")) {
-                            tmp_n_jpg_images += 1;
-                            long datetime = parse_date(img_or_trace.getName());
+                    }
+                    else{
+                        if(out != null) {
 
-                            if (new File(img_or_trace.getPath() + ".trace").isFile()) {
-                                tmp_n_traced_jpg_images += 1;
-
-                            }
-                            else{
-                                // untraced jpg.
-                                //can use for unique timestamp
-                                if(out != null)
-                                    out.add(new ImageRep(m_directory, device_id, datetime));
-                                if (new File(img_or_trace.getPath() + ".error").isFile()) {
-                                    tmp_n_errored_jpg_images += 1;
-                                }
-                            }
-                            if (datetime > most_recent_seen) {
-                                most_recent_seen = datetime;
-                            }
-                            tmp_disk_used += img_or_trace.length();
-                        }
-                        if (img_or_trace.getName().endsWith(".trace")) {
-                            tmp_n_trace_images += 1;
-                            if(out != null) {
-                                long datetime = parse_date(img_or_trace.getName());
-                                out.add(new ImageRep(m_directory, device_id, datetime));
-                            }
-
+                            out.add(new ImageRep(m_directory, device_id, line));
                         }
                     }
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                is_reading_index_file.set(false);
             }
         }
-        disk_used = tmp_disk_used;
-        n_jpg_images = tmp_n_jpg_images;
-        n_traced_jpg_images = tmp_n_traced_jpg_images;
-        n_errored_jpg_images = tmp_n_errored_jpg_images;
-        n_trace_images = tmp_n_trace_images;
-        last_img_seen = most_recent_seen;
+        else {
+            int tmp_n_jpg_images = 0;
+            int tmp_n_traced_jpg_images = 0;
+            int tmp_n_errored_jpg_images = 0;
+            int tmp_n_trace_images = 0;
+            long tmp_disk_used = 0;
+            long most_recent_seen = 0;
+            int n_indexed = 0;
+
+            File tmp_file = new File(index_path.getPath() + "~");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(tmp_file))) {
+                //        ArrayList<ImageRep> out = new ArrayList<>();
+
+                File directory = new File(m_directory);
+
+                File[] day_dirs = directory.listFiles();
+                if (day_dirs != null) {
+                    for (File day_dir : day_dirs) {
+                        if (!day_dir.isDirectory()) {
+                            continue;
+                        }
+                        File[] images = day_dir.listFiles(new FilenameFilter() {
+                                                              @Override
+                                                              public boolean accept(File dir, String name) {
+                                                                  return name.matches("^(.*\\.jpg)|(.*\\.trace)$");
+                                                              }
+                                                          }
+                        );
+                        if (images != null) {
+                            for (File img_or_trace : images) {
+                                if (img_or_trace.getName().endsWith(".jpg")) {
+                                    tmp_n_jpg_images += 1;
+                                    long datetime = parse_date(img_or_trace.getName());
+
+                                    if (new File(img_or_trace.getPath() + ".trace").isFile()) {
+                                        tmp_n_traced_jpg_images += 1;
+
+                                    } else {
+                                        // untraced jpg.
+                                        //can use for unique timestamp
+                                        ImageRep  im_rep = new ImageRep(m_directory, device_id, datetime);
+                                        if (out != null)
+                                            out.add(im_rep);
+                                        writer.write(im_rep.serialise());
+                                        n_indexed ++;
+
+                                        if (im_rep.get_has_error()) {
+                                            tmp_n_errored_jpg_images += 1;
+                                        }
+                                    }
+                                    if (datetime > most_recent_seen) {
+                                        most_recent_seen = datetime;
+                                    }
+                                    tmp_disk_used += img_or_trace.length();
+                                }
+                                if (img_or_trace.getName().endsWith(".trace")) {
+                                    tmp_n_trace_images += 1;
+                                    long datetime = parse_date(img_or_trace.getName());
+                                    ImageRep  im_rep = new ImageRep(m_directory, device_id, datetime);
+                                    if (out != null)
+                                        out.add(im_rep);
+
+                                    writer.write(im_rep.serialise());
+                                    n_indexed ++;
+
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Log.i(TAG,"Serialised " + n_indexed +" image representations");
+                writer.write("#" + tmp_disk_used  + "," + tmp_n_jpg_images+ "," + tmp_n_traced_jpg_images + "," +
+                        tmp_n_errored_jpg_images + "," + tmp_n_trace_images + "," + most_recent_seen + "\n");
+
+                writer.flush();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            disk_used = tmp_disk_used;
+            n_jpg_images = tmp_n_jpg_images;
+            n_traced_jpg_images = tmp_n_traced_jpg_images;
+            n_errored_jpg_images = tmp_n_errored_jpg_images;
+            n_trace_images = tmp_n_trace_images;
+            last_img_seen = most_recent_seen;
+
+
+            while (is_reading_index_file.get()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            tmp_file.renameTo(index_path);
+        }
+
     }
 
 
@@ -276,8 +350,6 @@ public class FileHandler extends Thread{
 
 
     private void upload_one_jpg(long timestamp){
-
-
         SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
         date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
 
@@ -377,7 +449,7 @@ public class FileHandler extends Thread{
     private void upload_all_jpg(){
         upload_status = "starting";
         n_uploaded_progress = new AtomicInteger(0);
-        // todo make some sort of status here!
+        //    o make some sort of status here!
         File directory = new File(m_directory);
 
         File[] day_dir = directory.listFiles();
@@ -430,24 +502,11 @@ public class FileHandler extends Thread{
         }
 
         Collections.sort(image_timestamps);
-        ThreadPoolExecutor executor =
-                (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
 
         for (long t : image_timestamps) {
-            executor.submit( () -> {
                 upload_one_jpg(t);
                 n_uploaded_progress.incrementAndGet();
-            });
-
-        }
-
-        executor.shutdown();
-        try {
-            executor.awaitTermination(2, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+            }
     }
 
     // Adds on here to get updated parsed date of img name
@@ -464,18 +523,39 @@ public class FileHandler extends Thread{
     }
 
 
+    class Uploader extends Thread {
+        Uploader() {
+            super();
+        }
+
+        @Override
+        public void run() {
+            while (true){
+                try {
+                    sleep(10000);
+                    if(paused){
+                        sleep(1000);
+                        continue;
+                    }
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                upload_all_jpg();
+            }
+        }
+    }
     @Override
     public void run() {
+        Uploader uploader = new Uploader();
+        uploader.start();
         while (true){
             try {
                 sleep(10000);
-            if(paused){
-                sleep(1000);
-                continue;
-            }
-            upload_all_jpg();
+                index_files();
 
-            } catch (InterruptedException e) {
+            }
+            catch (InterruptedException e){
                 e.printStackTrace();
             }
         }

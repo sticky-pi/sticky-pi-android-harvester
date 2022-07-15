@@ -72,7 +72,8 @@ public class FileManagerService extends Service {
                     if (!is_device_handled(dir.getName())) {
                         FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
                         file_handler_list.add(file_handler);
-                        Log.w("TODEL", "adding " +  file_handler.device_id);
+                        file_handler.pause(); // no upload for now
+                        file_handler.start();
                     }
                 }
             }
@@ -82,13 +83,14 @@ public class FileManagerService extends Service {
             }
 
         if(! pause_handlers) {
+
             if (file_handler_list != null && start_upload) {
                 for (FileHandler fh : file_handler_list) {
-
                     if (!fh.isAlive()) {
-                    fh.start();
+                        fh.start();
                     }
-                    if(!fh.isPaused()){
+                    if(fh.isPaused()){
+
                         fh.resume_run();
                     }
                 }
@@ -150,13 +152,6 @@ public class FileManagerService extends Service {
                 String password =  sharedpreferences.getString("preference_password", "");
                 delete_uploaded_images =  sharedpreferences.getBoolean("preference_delete_uploaded_images", false);
                 String protocol= "https";
-
-
-                // fixed DEV
-//                api_host = "192.168.42.86";
-//                user_name = "test_wr_user";
-//                password = "test";
-//                String protocol= "http";
 
                 if (api_client == null){
                     api_client = new APIClient(api_host, user_name, password, protocol);

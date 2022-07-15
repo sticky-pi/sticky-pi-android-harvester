@@ -13,9 +13,16 @@ public class ImageRep {
     private boolean has_trace;
     private boolean has_jpg;
     private boolean has_thumb;
+
+    public boolean get_has_error() {
+        return has_error;
+    }
+
     private boolean has_error;
     static SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
     static SimpleDateFormat day_formatter = new SimpleDateFormat("yyyy-MM-dd");
+
+
     public ImageRep(String root_directory, String deviceID, long timeStamp) {
         time = timeStamp;
         date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -24,7 +31,22 @@ public class ImageRep {
         has_thumb = new File (getImgThumbnailPath(root_directory,deviceID)).isFile();
         has_trace = new File (getImgTracePath(root_directory,deviceID)).isFile();
         has_error = new File (getImgErrorPath(root_directory,deviceID)).isFile();
+    }
 
+    public ImageRep(String root_directory, String deviceID, String serialised_line) {
+        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+        day_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+        String[] values = serialised_line.split(",", 5);
+        int i = 0;
+        time =  Long.parseLong(values[i++]);
+        has_jpg = Boolean.parseBoolean(values[i++]);
+        has_thumb = Boolean.parseBoolean(values[i++]);
+        has_trace = Boolean.parseBoolean(values[i++]);
+        has_error = Boolean.parseBoolean(values[i++]);
+    }
+    public String serialise(){
+        return time + "," + has_jpg + "," + has_thumb + "," + has_trace + "," + has_error + "\n";
     }
 
     public String getImageDatetime() {

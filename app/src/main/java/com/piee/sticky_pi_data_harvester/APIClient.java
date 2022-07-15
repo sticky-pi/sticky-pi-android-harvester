@@ -23,16 +23,21 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class APIClient {
     static final String TAG =  "APIClient";
-    final int MAX_CONCURRENT_REQUESTS = 32;
+    final int MAX_CONCURRENT_REQUESTS = 16;
+    final int MAX_CONCURRENT_UPLOADS = 8;
     final int MAX_RETRIES = 5;
+
+
     String token;
     long token_expiration;
     String m_password;
@@ -40,7 +45,8 @@ public class APIClient {
     String m_user_name;
     String m_api_host;
     String m_protocol;
-    int ongoing_requests = 0;
+    AtomicInteger ongoing_requests;
+    AtomicInteger ongoing_uploads;
 
 
     public String get_password() {
@@ -57,10 +63,13 @@ public class APIClient {
 
 
     APIClient(String api_host, String user_name, String password, String protocol){
+
         m_api_host = api_host;
         m_user_name = user_name;
         m_password = password;
         m_protocol = protocol;
+        ongoing_requests = new AtomicInteger(0);
+        ongoing_uploads = new AtomicInteger(0);
     }
 
     private static String read_all(Reader rd) throws IOException {
@@ -180,15 +189,17 @@ public class APIClient {
     }
 
     public Object  api_call(Object payload, String endpoint){
-        ongoing_requests++;
-        while (ongoing_requests >= MAX_CONCURRENT_REQUESTS){    
+
+        while (ongoing_requests.intValue() >= MAX_CONCURRENT_REQUESTS){
+
             try {
-                Thread.sleep(100);
+                Thread.sleep(500);
+                Log.i(TAG, "Too many concurrent requests, waiting");
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
+        ongoing_requests.incrementAndGet();
         try {
             Class<? extends Object> clazz = payload.getClass();
             Object out = null;
@@ -214,111 +225,111 @@ public class APIClient {
                 }
             }
         }finally {
-            ongoing_requests --;
+            ongoing_requests.decrementAndGet();
         }
     }
 
-public JSONArray multipartRequest(String urlTo,  String filepath, String filefield, String md5 ) throws IOException, JSONException, HTTPError {
-    return multipartRequest(urlTo, filepath, filefield, md5, 0);
-}
-public JSONArray multipartRequest(String urlTo,  String filepath, String filefield, String md5, int retries ) throws IOException, JSONException, HTTPError {
-    if(retries >= MAX_RETRIES)
-        throw new MaxRetriesError("Too many failed requests");
-
-    try {
-        Thread.sleep(retries * 1000L);
-    } catch (InterruptedException e) {
-        e.printStackTrace();
+    public JSONArray multipartRequest(String urlTo,  String filepath, String filefield, String md5 ) throws IOException, JSONException, HTTPError {
+        return multipartRequest(urlTo, filepath, filefield, md5, 0);
     }
+    public JSONArray multipartRequest(String urlTo,  String filepath, String filefield, String md5, int retries ) throws IOException, JSONException, HTTPError {
+        if(retries >= MAX_RETRIES)
+            throw new MaxRetriesError("Too many failed requests");
 
-    HttpURLConnection connection = null;
-    DataOutputStream outputStream = null;
-    InputStream inputStream = null;
+        try {
+            Thread.sleep(retries * 1000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
-    String twoHyphens = "--";
-    String boundary = "*****" + Long.toString(System.currentTimeMillis()) + "*****";
-    String lineEnd = "\r\n";
+        HttpURLConnection connection = null;
+        DataOutputStream outputStream = null;
+        InputStream inputStream = null;
 
-    JSONArray result  = new JSONArray();
+        String twoHyphens = "--";
+        String boundary = "*****" + Long.toString(System.currentTimeMillis()) + "*****";
+        String lineEnd = "\r\n";
 
-    int bytesRead, bytesAvailable, bufferSize;
-    byte[] buffer;
-    int maxBufferSize = 1 * 1024 * 1024;
+        JSONArray result  = new JSONArray();
 
-    String[] q = filepath.split("/");
-    int idx = q.length - 1;
+        int bytesRead, bytesAvailable, bufferSize;
+        byte[] buffer;
+        int maxBufferSize = 1 * 1024 * 1024;
+
+        String[] q = filepath.split("/");
+        int idx = q.length - 1;
 
 
-    File file = new File(filepath);
-    FileInputStream fileInputStream = new FileInputStream(file);
+        File file = new File(filepath);
+        FileInputStream fileInputStream = new FileInputStream(file);
 
-    URL url = new URL(urlTo);
-    connection = (HttpURLConnection) url.openConnection();
+        URL url = new URL(urlTo);
+        connection = (HttpURLConnection) url.openConnection();
 
-    //
-    String user_pass = m_user_name + ":" + m_password;
-    final String basicAuth = "Basic " + Base64.encodeToString( user_pass.getBytes(), Base64.NO_WRAP);
+        //
+        String user_pass = m_user_name + ":" + m_password;
+        final String basicAuth = "Basic " + Base64.encodeToString( user_pass.getBytes(), Base64.NO_WRAP);
 
-    connection.setDoInput(true);
-    connection.setDoOutput(true);
-    connection.setUseCaches(false);
+        connection.setDoInput(true);
+        connection.setDoOutput(true);
+        connection.setUseCaches(false);
 
-    connection.setRequestMethod("POST");
-    connection.setRequestProperty("Connection", "Keep-Alive");
-    connection.setRequestProperty("User-Agent", "Android Multipart HTTP Client 1.0");
-    connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-    connection.setRequestProperty("Authorization", basicAuth);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Connection", "Keep-Alive");
+        connection.setRequestProperty("User-Agent", "Android Multipart HTTP Client 1.0");
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        connection.setRequestProperty("Authorization", basicAuth);
 
-    outputStream = new DataOutputStream(connection.getOutputStream());
-    outputStream.writeBytes(twoHyphens + boundary + lineEnd);
-    outputStream.writeBytes("Content-Disposition: form-data; name=\"" + filefield + "\"; filename=\"" + q[idx] + "\"" + lineEnd);
-    outputStream.writeBytes("Content-Type: image/jpeg" + lineEnd);
-    outputStream.writeBytes("Content-Transfer-Encoding: binary" + lineEnd);
+        outputStream = new DataOutputStream(connection.getOutputStream());
+        outputStream.writeBytes(twoHyphens + boundary + lineEnd);
+        outputStream.writeBytes("Content-Disposition: form-data; name=\"" + filefield + "\"; filename=\"" + q[idx] + "\"" + lineEnd);
+        outputStream.writeBytes("Content-Type: image/jpeg" + lineEnd);
+        outputStream.writeBytes("Content-Transfer-Encoding: binary" + lineEnd);
 
-    outputStream.writeBytes(lineEnd);
+        outputStream.writeBytes(lineEnd);
 
-    bytesAvailable = fileInputStream.available();
-    bufferSize = Math.min(bytesAvailable, maxBufferSize);
-    buffer = new byte[bufferSize];
-
-    bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-    while (bytesRead > 0) {
-        outputStream.write(buffer, 0, bufferSize);
         bytesAvailable = fileInputStream.available();
         bufferSize = Math.min(bytesAvailable, maxBufferSize);
+        buffer = new byte[bufferSize];
+
         bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+        while (bytesRead > 0) {
+            outputStream.write(buffer, 0, bufferSize);
+            bytesAvailable = fileInputStream.available();
+            bufferSize = Math.min(bytesAvailable, maxBufferSize);
+            bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+        }
+
+        outputStream.writeBytes(lineEnd);
+
+        outputStream.writeBytes(twoHyphens + boundary + lineEnd);
+        outputStream.writeBytes("Content-Disposition: form-data; name=\"" +  q[idx] +".md5" + "\"" + lineEnd);
+        outputStream.writeBytes("Content-Type: application/json" + lineEnd);
+        outputStream.writeBytes(lineEnd);
+        outputStream.writeBytes(md5);
+        outputStream.writeBytes(lineEnd);
+
+
+        outputStream.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+
+
+        if (200 != connection.getResponseCode()) {
+            multipartRequest(urlTo,  filepath, filefield, md5,retries+1);
+        }
+
+        inputStream = connection.getInputStream();
+
+        String result_str = this.convertStreamToString(inputStream);
+        result = new JSONArray(result_str);
+        fileInputStream.close();
+        inputStream.close();
+        outputStream.flush();
+        outputStream.close();
+
+        return result;
+
+
     }
-
-    outputStream.writeBytes(lineEnd);
-
-    outputStream.writeBytes(twoHyphens + boundary + lineEnd);
-    outputStream.writeBytes("Content-Disposition: form-data; name=\"" +  q[idx] +".md5" + "\"" + lineEnd);
-    outputStream.writeBytes("Content-Type: application/json" + lineEnd);
-    outputStream.writeBytes(lineEnd);
-    outputStream.writeBytes(md5);
-    outputStream.writeBytes(lineEnd);
-
-
-    outputStream.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
-
-
-    if (200 != connection.getResponseCode()) {
-        multipartRequest(urlTo,  filepath, filefield, md5,retries+1);
-    }
-
-    inputStream = connection.getInputStream();
-
-    String result_str = this.convertStreamToString(inputStream);
-    result = new JSONArray(result_str);
-    fileInputStream.close();
-    inputStream.close();
-    outputStream.flush();
-    outputStream.close();
-
-    return result;
-
-
-}
 
     private String convertStreamToString(InputStream is) {
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
@@ -343,30 +354,45 @@ public JSONArray multipartRequest(String urlTo,  String filepath, String filefie
 
 
     boolean put_image(File img, String md5){
-        JSONArray out  = null;
-        try {
-            out = multipartRequest(m_protocol + "://" + m_api_host + "/" +"_put_new_images", img.getPath(), img.getName(), md5);
-        } catch (IOException | JSONException | HTTPError e) {
-            e.printStackTrace();
-            return false;
-        }
 
+        while (ongoing_uploads.intValue() >= MAX_CONCURRENT_UPLOADS){
 
-        if(out.length() > 0) {
             try {
-                String server_md5 = ((JSONObject) out.get(0)).getString("md5");
-                if(Objects.equals(md5, server_md5)) {
-                    return  true;
-                }
-                else{
-                    Log.e(TAG, "Different local and server md5s for " + img.getName());
-                }
-            } catch (JSONException e) {
+                Thread.sleep(500);
+                Log.i(TAG, "Too many upload requests, waiting");
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
 
+        ongoing_uploads.incrementAndGet();
+        try {
+            JSONArray out = null;
+            try {
+                out = multipartRequest(m_protocol + "://" + m_api_host + "/" + "_put_new_images", img.getPath(), img.getName(), md5);
+            } catch (IOException | JSONException | HTTPError e) {
+                e.printStackTrace();
+                return false;
+            }
 
+
+            if (out.length() > 0) {
+                try {
+                    String server_md5 = ((JSONObject) out.get(0)).getString("md5");
+                    if (Objects.equals(md5, server_md5)) {
+                        return true;
+                    } else {
+                        Log.e(TAG, "Different local and server md5s for " + img.getName());
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+        finally {
+            ongoing_uploads.decrementAndGet();
+        }
         return false;
     }
 

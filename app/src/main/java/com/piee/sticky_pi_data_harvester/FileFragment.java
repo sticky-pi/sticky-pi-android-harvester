@@ -2,6 +2,7 @@ package com.piee.sticky_pi_data_harvester;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -45,7 +46,7 @@ public class FileFragment extends Fragment {
                 // cannot use iterators as array may grow meanwhile!
                 for (int i=0; i != file_handlers.size(); i++) {
                     FileHandler fh = file_handlers.get(i);
-                    fh.index_files();
+                    fh.index_files(null, true);
                     n_files += fh.get_n_jpg_images();
                     n_traces += fh.get_n_trace_images();
                     disk_use += fh.get_disk_use();
@@ -73,13 +74,15 @@ public class FileFragment extends Fragment {
 
                 mHandler.postDelayed(this, 5000);
                 update_global_file_summary();
-               TextView text = main_activity.findViewById(R.id.global_device_file_info);
+                TextView text = main_activity.findViewById(R.id.global_device_file_info);
                 if(text != null) {
                     String disk_use_str =  String.format( "%.02f", (double) global_disk_use / (Math.pow(1024, 3)));
                     text.setText(
                             n_global_files + " Local JPG images\n" +
                                     n_global_traces + " Uploaded images\n" +
-                                    disk_use_str + " GB used\n"
+                                    disk_use_str + " GB used\n" +
+                                    "Uploading " + file_manager_service.get_api_client().ongoing_uploads.intValue() +" images\n"
+
 
                     );
                 }

@@ -114,8 +114,6 @@ public class DetailFragment extends Fragment {
         device_id.setText( devId);
         device_id.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
 
-
-
         for (FileHandler fh: file_handler_list) {
             if(Objects.equals(fh.get_device_id(), devId)) {
                 fileHandler = fh;
@@ -129,10 +127,7 @@ public class DetailFragment extends Fragment {
         }
 
         ArrayList<ImageRep> all_img_reps = new ArrayList<>();
-        fileHandler.index_files(all_img_reps);
-
-
-
+        fileHandler.index_files(all_img_reps, true);
 
         if(all_img_reps.size() == 0) {
             Log.e(TAG, "No images for " + devId);
