@@ -72,6 +72,7 @@ public class FileManagerService extends Service {
                     if (!is_device_handled(dir.getName())) {
                         FileHandler file_handler = new FileHandler(dir.getPath(), api_client, delete_uploaded_images);
                         file_handler_list.add(file_handler);
+                        Log.w("TODEL", "adding " +  file_handler.device_id);
                     }
                 }
             }

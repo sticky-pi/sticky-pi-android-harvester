@@ -41,13 +41,16 @@ public class FileFragment extends Fragment {
             int n_traces = 0;
             long disk_use = 0;
             ArrayList<FileHandler> file_handlers = file_handler_list;
-            if(file_handlers != null)
-                for (FileHandler fh: file_handlers) {
+            if(file_handlers != null) {
+                // cannot use iterators as array may grow meanwhile!
+                for (int i=0; i != file_handlers.size(); i++) {
+                    FileHandler fh = file_handlers.get(i);
                     fh.index_files();
                     n_files += fh.get_n_jpg_images();
                     n_traces += fh.get_n_trace_images();
                     disk_use += fh.get_disk_use();
                 }
+            }
             global_disk_use = disk_use;
             n_global_files = n_files;
             n_global_traces = n_traces;
