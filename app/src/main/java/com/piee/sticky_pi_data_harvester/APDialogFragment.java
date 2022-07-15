@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
@@ -13,6 +13,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 
+import com.piee.sticky_pi_data_harvester.R;
+
 import java.util.Objects;
 
 
@@ -23,20 +25,27 @@ public class APDialogFragment extends DialogFragment {
     Bitmap m_img;
     boolean dismissed = false;
 
-    public void onDismiss(DialogInterface dialog)
-    {
-        super.onDismiss(dialog);
-        DeviceListFragment parent =  (DeviceListFragment) getParentFragment();
-        dismissed = true;
-        parent.handleDialogClose(dialog);
-    }
+//    public void onDismiss(DialogInterface dialog)
+//    {
+//        super.onDismiss(dialog);
+//        DeviceListFragment parent =  (DeviceListFragment) getParentFragment();
+//        dismissed = true;
+//        parent.handleDialogClose(dialog);
+//    }
 
-    public  APDialogFragment(String ssid, String pass, Bitmap img){
+    public  APDialogFragment(String ssid, String pass, Bitmap img) {
         super();
         m_ssid = ssid;
         m_pass = pass;
         m_img = img;
     }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light);
+    }
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -53,6 +62,7 @@ public class APDialogFragment extends DialogFragment {
         ssid_view.setText(m_ssid);
         TextView  pass_view = out.findViewById(R.id.ap_pass);
         pass_view.setText(m_pass);
+        //TODO SET BRIGHTNESS TO HIGHHHHHHHHH
         return out;
     }
 

@@ -5,7 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".DeviceListFragment">
+    tools:context="com.piee.sticky_pi_data_harvester.DeviceListFragment">
 
 <!--    <RelativeLayout-->
 <!--        android:layout_width="match_parent"-->
@@ -23,10 +23,11 @@
         android:orientation="vertical"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        android:gravity="center"
         >
 
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="128dp"
             android:layout_weight="1"
@@ -37,46 +38,71 @@
                 android:id="@+id/location_text_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
                 android:text="No Location data!"
                 android:fontFamily="monospace"
                 android:textSize="10dp"
                 app:drawableLeftCompat="@drawable/ic_baseline_map_24"
 
                 />
-
-            <ImageView
-                android:id="@+id/local_only_ap_qr"
+            <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:adjustViewBounds="true"
-                android:scaleType="fitXY" />
+                android:orientation="vertical"
+                 android:layout_height="match_parent"
+                android:layout_alignParentEnd="true"
+                >
 
-        </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Connectivity"
+                    android:textSize="16dp"
+                    />
+                <TextView
+                    android:id="@+id/device_conectivity_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Unknown"
+                    android:textSize="14dp"
+                    />
+                <Button
+                    android:id="@+id/device_conectivity_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16dp"
+                    android:text="Unknown"
+                    />
+
+            </LinearLayout>
+
+<!--            <ImageView-->
+<!--                android:id="@+id/local_only_ap_qr"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:adjustViewBounds="true"-->
+<!--                android:scaleType="fitXY" />-->
+
+        </RelativeLayout>
 
         <GridView
+
             android:id="@+id/device_grid_view"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            android:layout_marginStart="8dp"
             android:numColumns="3"
+            android:gravity="center"
             android:stretchMode="columnWidth"
-
-            android:layout_weight="20"
+            android:verticalSpacing="8dp"
+            android:horizontalSpacing="8dp"
+            android:layout_weight="100"
             />
-
-        <Button
-            android:id="@+id/button_first"
-            android:layout_width="128dp"
-            android:layout_height="50dp"
-            android:text="@string/next"
-            android:layout_weight="1" />
-
     </LinearLayout>
 
-
-<!--    </RelativeLayout>-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

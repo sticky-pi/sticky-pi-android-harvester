@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import static java.lang.Thread.sleep;
 
@@ -6,6 +6,7 @@ import android.Manifest;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 import android.location.Criteria;
@@ -15,8 +16,11 @@ import android.location.LocationManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Binder;
+import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
@@ -36,6 +40,7 @@ public class DeviceManagerService extends Service {
     static final String SERVICE_TYPE = "_http._tcp.";
     static final String SERVICE_NAME_PREFIX = "StickyPi-";
     static final String UPDATE_LOCATION_INTENT = "UPDATE_LOCATION_INTENT";
+    int debug_i = 0;
 
     String location_provider;
     Location location;
@@ -46,7 +51,13 @@ public class DeviceManagerService extends Service {
     Hashtable<String, DeviceHandler> device_dict = new Hashtable<>();
     Context gps_context;
     File storage_dir = null;
+    Toast gps_error_toast;
+    final int GPS_TOAST_DURATION = 10000; // ms
 
+
+    public Location get_location() {
+        return location;
+    }
     MyBinder binder = new MyBinder();
 
     public class MyBinder extends Binder {
@@ -91,8 +102,40 @@ public class DeviceManagerService extends Service {
         }
     }
 
-    public Location get_location() {
-        return location;
+    public void show_gps_toast(String msg) {
+
+
+        CountDownTimer toastCountDown;
+        if(gps_error_toast != null) {
+            gps_error_toast.cancel();
+            gps_error_toast = null;
+        }
+
+        toastCountDown = new CountDownTimer(GPS_TOAST_DURATION, 100 /*Tick duration*/) {
+
+            public void onTick(long millisUntilFinished) {
+                SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
+
+                boolean enforce_gps =  sharedpreferences.getBoolean("preference_enforce_gps", true);
+                if(location == null  && enforce_gps) {
+                    gps_error_toast = Toast.makeText(DeviceManagerService.this.getApplicationContext(), msg, Toast.LENGTH_LONG);
+                    gps_error_toast.show();
+                }
+                else {
+                    if(gps_error_toast != null)
+                        gps_error_toast.cancel();
+                    gps_error_toast = null;
+                    this.cancel();
+                }
+
+            }
+            public void onFinish() {
+                if(gps_error_toast != null)
+                    gps_error_toast.cancel();
+
+            }
+        };
+        toastCountDown.start();
     }
 
     public void initializeDiscoveryListener() {
@@ -102,17 +145,14 @@ public class DeviceManagerService extends Service {
                 Log.e(TAG, "Discovery FAILED");
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
                 mNsdManager.stopServiceDiscovery(this);
             }
-
             @Override
             public void onDiscoveryStarted(String serviceType) {
                 Log.w(TAG, "Discovery started");
             }
-
             @Override
             public void onDiscoveryStopped(String serviceType) {
                 Log.w(TAG, "Discovery Stopped");
@@ -145,10 +185,27 @@ public class DeviceManagerService extends Service {
                     @Override
                     public void onServiceResolved(NsdServiceInfo serviceInfo) {
                         Log.i(TAG, "Service Resolved: " + serviceInfo);
+                        SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
+
+                        boolean enforce_gps =  sharedpreferences.getBoolean("preference_enforce_gps", true);
+                        // https://github.com/sticky-pi/sticky-pi-android-harvester/issues/6
+                        if(location == null && enforce_gps){
+                            String[] service_name_fields = serviceInfo.getServiceName().split("-");
+                            String device_id = "undefined";
+                            if(service_name_fields.length > 1){
+                                device_id = service_name_fields[1];
+                            }
+                            String msg = "Detected device " + device_id + ", but GPS location is unavailable. " +
+                                    "Wait or override in the app's settings.";
+                            Log.e(TAG, msg);
+                            show_gps_toast(msg);
+                            return;
+                        }
 
                         DeviceHandler dev_handl = new DeviceHandler(serviceInfo, location, storage_dir);
 
                         if (device_dict.containsKey(dev_handl.get_device_id())) {
+
                             if (device_dict.get(dev_handl.get_device_id()).isAlive()) {
                                 Log.w(TAG, "Device " + dev_handl.get_device_id() + " already registered and running.");
                                 return;
@@ -192,6 +249,7 @@ public class DeviceManagerService extends Service {
                 Log.i(TAG, "Updating location");
                 location = loc;
                 sendBroadcast(new Intent(DeviceManagerService.UPDATE_LOCATION_INTENT));
+
             }
 
 
@@ -215,11 +273,11 @@ public class DeviceManagerService extends Service {
         initializeLocationListener();
         initialise_device_table();
 
+
         gps_context = this;
         mNsdManager = (NsdManager) (getApplicationContext().getSystemService(Context.NSD_SERVICE));
         locationManager = (LocationManager) gps_context.getSystemService(Context.LOCATION_SERVICE);
         location_provider = locationManager.getBestProvider(new Criteria(), false);
-
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //todo
@@ -231,7 +289,7 @@ public class DeviceManagerService extends Service {
 
         initializeDiscoveryListener();
         mNsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, spiDiscoveryListener);
-        Log.e("TODEL", "service created");
+
     }
 
 
@@ -241,8 +299,13 @@ public class DeviceManagerService extends Service {
     }
 
     @Override
+    public boolean onUnbind(Intent intent) {
+        stopSelf();
+        return false;
+    }
+
+    @Override
     public int onStartCommand(Intent intent, int flag, int start_id) {
         return Service.START_STICKY;
     }
-
 }

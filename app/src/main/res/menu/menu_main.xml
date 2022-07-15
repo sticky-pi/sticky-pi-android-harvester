@@ -1,7 +1,19 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.example.sticky_pi_data_harvester.MainActivity" >
+    tools:context="com.example.sticky_pi_data_harvester.com.piee.sticky_pi_data_harvester.MainActivity" >
+
+
+    <item android:id="@+id/action_devices"
+        android:title="Devices"
+        android:orderInCategory="80"
+        app:showAsAction="ifRoom" />
+
+    <item android:id="@+id/action_images"
+        android:title="Images"
+        android:orderInCategory="90"
+        app:showAsAction="ifRoom" />
+
     <item android:id="@+id/action_settings"
         android:title="@string/action_settings"
         android:orderInCategory="100"
