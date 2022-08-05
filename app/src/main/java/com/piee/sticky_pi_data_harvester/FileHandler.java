@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -38,13 +39,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FileHandler extends Thread{
     static final String TAG = "FileHandler";
     static final String INDEX_FILENAME = "file_index.csv";
-
-
+    static DateTimeFormatter date_formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     long last_img_seen;
     String m_directory;
     String device_id;
     APIClient m_api_client;
-    String m_api_host;
+
 
     int n_jpg_images = 0;
     int n_traced_jpg_images = 0;
@@ -130,9 +130,7 @@ public class FileHandler extends Thread{
     void index_files(ArrayList<ImageRep> out, boolean from_index_file){
         File index_path = new File(new File(m_directory).getPath() + "/" + INDEX_FILENAME);
 
-
         if(from_index_file && index_path.isFile()) {
-
             try (BufferedReader br = new BufferedReader(new FileReader(index_path))) {
                 is_reading_index_file.set(true);
                 String line;
@@ -140,6 +138,7 @@ public class FileHandler extends Thread{
                     line = line.replace("\n", "").replace("\r", "");
                     if(line.startsWith("#")) {
                         line = line.substring(1);
+
                         String[] values = line.split(",", 6);
                         int i=0;
                         disk_used = Long.parseLong(values[i++]);
@@ -152,7 +151,6 @@ public class FileHandler extends Thread{
                     }
                     else{
                         if(out != null) {
-
                             out.add(new ImageRep(m_directory, device_id, line));
                         }
                     }
@@ -224,11 +222,8 @@ public class FileHandler extends Thread{
                                     ImageRep  im_rep = new ImageRep(m_directory, device_id, datetime);
                                     if (out != null)
                                         out.add(im_rep);
-
                                     writer.write(im_rep.serialise());
                                     n_indexed ++;
-
-
                                 }
                             }
                         }
@@ -350,13 +345,17 @@ public class FileHandler extends Thread{
 
 
     private void upload_one_jpg(long timestamp){
-        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+//
+//        DateTimeFormatter date_formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+//        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+//        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
 
+//        String date = date_formatter.format(new Date(timestamp));
+        LocalDateTime date = Instant.ofEpochMilli(timestamp * 1000).atZone(ZoneOffset.UTC).toLocalDateTime();
+        String date_str = date.format(date_formatter);
 
-        String date = date_formatter.format(new Date(timestamp));
-        String day_str = date.substring(0, 10);
-        String img_path = m_directory + "/" + day_str + "/" +device_id + "." + date + ".jpg";
+        String day_str = date_str.substring(0, 10);
+        String img_path = m_directory + "/" + day_str + "/" +device_id + "." + date_str + ".jpg";
         String trace_img_path = img_path + ".trace";
         String error_img_path = img_path + ".error";
         File image = new File(img_path);
@@ -400,7 +399,7 @@ public class FileHandler extends Thread{
             Log.e(TAG, "Cannot find image to upload: " + img_path + ". Timestamp: " + timestamp);
             return;
         }
-        String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date);
+        String query_str = String.format("[{\"device\": \"%s\", \"datetime\": \"%s\"}]", device_id, date_str);
         try {
             JSONArray payload = new JSONArray(query_str);
             JSONArray response = (JSONArray) m_api_client.api_call((Object) payload, "get_images/metadata");
@@ -465,9 +464,9 @@ public class FileHandler extends Thread{
 
     }
     private void upload_all_jpg_in_day_dir(File directory) {
-        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
-
+//        SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+//        date_formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+//
 
 
         File[] images = directory.listFiles(new FilenameFilter() {
@@ -486,15 +485,13 @@ public class FileHandler extends Thread{
             for (File img : images) {
                 String fields[] = img.getName().split("\\.");
                 if (fields.length > 2) {
-                    try {
-                        Date date = date_formatter.parse(fields[1]);
-                        long timestamp = date.getTime();
-                        image_timestamps.add(timestamp);
 
-                    } catch (ParseException e) {
-                        Log.e(TAG, "Cannot parse date in: " + img.getName() + " (" + fields[1] + ").");
-                        e.printStackTrace();
-                    }
+//                        LocalDateTime date = LocalDateTime.parse(fields[1], date_formatter);
+//                        Date date = date_formatter.parse(fields[1]);
+                    long timestamp = parse_date(fields[1]);
+                    image_timestamps.add(timestamp);
+
+
                 } else {
                     Log.e(TAG, "Unexpected image name: " + img.getName());
                 }
@@ -515,8 +512,7 @@ public class FileHandler extends Thread{
         String[] arrSplit = name.split("\\.");
         if (arrSplit.length > 2) {
             String date = arrSplit[1];
-            LocalDateTime ldt = LocalDateTime.parse(date,
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            LocalDateTime ldt = LocalDateTime.parse(date, date_formatter);
             timeInSeconds = ldt.toEpochSecond(ZoneOffset.UTC);
         }
         return timeInSeconds;
@@ -551,9 +547,9 @@ public class FileHandler extends Thread{
         uploader.start();
         while (true){
             try {
-                sleep(10000);
-                index_files();
 
+                index_files();
+                sleep(10000);
             }
             catch (InterruptedException e){
                 e.printStackTrace();
