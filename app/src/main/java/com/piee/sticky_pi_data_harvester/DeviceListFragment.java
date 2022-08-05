@@ -84,6 +84,7 @@ public class DeviceListFragment extends Fragment {
     }
 
     private Runnable mUpdateTimeTask = new Runnable() {
+
         public void run() {
             try {
                 update_location_view();
@@ -98,94 +99,6 @@ public class DeviceListFragment extends Fragment {
         }
     };
 
-    private void generate_local_only_qr(){
-        MainActivity main_activity = (MainActivity) getActivity();
-//        ImageView imageCode = main_activity.findViewById(R.id.local_only_ap_qr);
-        Button connectivity_button = main_activity.findViewById(R.id.device_conectivity_action);
-        // this should also work in localonly hotspo is on the 2.4ghz band
-
-        if( local_only_ssid != null && local_only_pass != null) {
-
-            String qr_code = "WIFI:S:" + local_only_ssid + ";T:WPA;P:" + local_only_pass + ";;F:1;";
-
-            MultiFormatWriter mWriter = new MultiFormatWriter();
-            //ImageView for generated QR code
-
-            //        ImageView dialog_image = findViewById(R.id.dialog_ap_qr);
-
-            try {
-                //BitMatrix class to encode entered text and set Width & Height
-                BitMatrix mMatrix = mWriter.encode(qr_code, BarcodeFormat.QR_CODE, 512, 512);
-                BarcodeEncoder mEncoder = new BarcodeEncoder();
-                Bitmap mBitmap = mEncoder.createBitmap(mMatrix);//creating bitmap of code
-//                imageCode.setImageBitmap(mBitmap);//Setting generated QR code to imageView
-
-                connectivity_button.setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View v) {
-                        APDialogFragment ap_dial_frag = new APDialogFragment(local_only_ssid, local_only_pass, mBitmap);
-                        ap_dial_frag.show(getChildFragmentManager(), "ap");
-                    }
-                });
-            } catch (WriterException writerException) {
-                writerException.printStackTrace();
-            }
-        }
-        else{
-            connectivity_button.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-//                    Toast("VOILA");
-                    Toast.makeText(main_activity, "Issue with temporary access point!",
-                            Toast.LENGTH_LONG).show();
-//
-                }
-            });
-        }
-//        else{
-//            if(local_only_ssid == null  || local_only_pass == null){
-//
-//                Log.e(TAG, "Localonly wifi not set up properly!");
-//                imageCode.setImageDrawable(getResources().getDrawable(R.drawable.deactivate_wifi));
-//            }
-//            else {
-//                imageCode.setImageDrawable(getResources().getDrawable(R.drawable.deactivate_wifi));
-//                Log.e(TAG, "Wifi enabled. Might not be able to start access point!");
-//                // support for turning wifi off from app is deprecated!
-//                imageCode.setOnClickListener(new View.OnClickListener() {
-//                    public void onClick(View v) {
-//
-//                        Intent intent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
-//                        startActivityForResult(intent, 0);
-//                    }
-//                });
-//            }
-//        }
-
-    }
-//
-//    public String get_hostspot_name(){
-//        String ssid = "";
-//        MainActivity main_activity = (MainActivity) getActivity();
-//        wifiManager = (WifiManager) main_activity.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-//        Method[] methods = wifiManager.getClass().getDeclaredMethods();
-//        for (Method m: methods) {
-//            if (m.getName().equals("getWifiApConfiguration")) {
-//                WifiConfiguration config = null;
-//                try {
-//                    config = (WifiConfiguration)m.invoke(wifiManager);
-//                } catch (IllegalAccessException e) {
-//                    e.printStackTrace();
-//                } catch (InvocationTargetException e) {
-//                    e.printStackTrace();
-//                }
-//                if (config != null) {
-//                    ssid = config.SSID;
-////                    String bssid = config.BSSID;
-//                }
-//            }
-//        }
-//        return ssid;
-//    }
-//
     @AfterPermissionGranted(MY_PERMISSIONS_REQUEST_LOCATION)
     public void turnOnHotspot() {
 
@@ -193,8 +106,6 @@ public class DeviceListFragment extends Fragment {
             hotspotReservation.close();
             hotspotReservation = null;
         }
-//        get_hostspot_name();
-//        wifiManager = (WifiManager) parent_activity.getSystemService(Context.WIFI_SERVICE);
 
         MainActivity main_activity = (MainActivity) getActivity();
 
@@ -212,7 +123,6 @@ public class DeviceListFragment extends Fragment {
                 WifiConfiguration currentConfig = hotspotReservation.getWifiConfiguration();
                 local_only_pass = currentConfig.preSharedKey;
                 local_only_ssid = currentConfig.SSID;
-//                generate_local_only_qr();
             }
 
             @Override
@@ -362,6 +272,7 @@ public class DeviceListFragment extends Fragment {
         final GridView gridView = (GridView) binding.getRoot().findViewById(R.id.device_grid_view);
 
         gridView.setAdapter(device_adapter);
+//        mUpdateTimeTask.
         mUpdateTimeTask.run();
         return binding.getRoot();
 
@@ -375,6 +286,7 @@ public class DeviceListFragment extends Fragment {
     public void onDestroyView() {
         if(hotspotReservation != null)
             hotspotReservation.close();
+        mHandler.removeCallbacks(mUpdateTimeTask);
         super.onDestroyView();
         binding = null;
     }

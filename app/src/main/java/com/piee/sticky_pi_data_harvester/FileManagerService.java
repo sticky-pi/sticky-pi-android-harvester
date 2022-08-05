@@ -113,6 +113,8 @@ public class FileManagerService extends Service {
     }
     public boolean is_domain_up(String domain) {
         try {
+            if(Objects.equals(domain, ""))
+                return false;
             InetAddress ipAddr = InetAddress.getByName(domain);
             //You can replace it with your name
             return !ipAddr.toString().equals("");
@@ -144,8 +146,9 @@ public class FileManagerService extends Service {
 
         @Override
         public void run(){
-//            int i = 0;
+
             while(!isInterrupted()){
+
                 SharedPreferences sharedpreferences = getSharedPreferences(MainActivity.APP_TAG, Context.MODE_PRIVATE);
                 String api_host =  sharedpreferences.getString("preference_api_host", "");
                 String user_name =  sharedpreferences.getString("preference_user_name", "");

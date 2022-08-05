@@ -132,6 +132,7 @@ public class DeviceAdapter extends BaseAdapter {
 
                 //
                 holder.rectangle.setClickable(true);
+
                 holder.rectangle.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {

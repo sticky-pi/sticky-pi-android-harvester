@@ -80,7 +80,6 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceDisconnected(ComponentName arg0) {
             file_manager_service_bound = false;
             file_manager_service = null;
-            Log.e("TODEL", "file disconnected");
         }
     };
 

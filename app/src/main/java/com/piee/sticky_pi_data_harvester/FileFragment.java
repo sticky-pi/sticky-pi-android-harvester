@@ -174,6 +174,7 @@ public class FileFragment extends Fragment {
 @Override
     public void onDestroyView() {
         super.onDestroyView();
+        mHandler.removeCallbacks(mUpdateTimeTask);
         binding = null;
     }
 
