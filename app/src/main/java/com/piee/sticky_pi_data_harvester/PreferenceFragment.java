@@ -177,6 +177,6 @@ public class PreferenceFragment extends Fragment {
 
     }
     public void cancel(View view){
-        
+
     }
 }

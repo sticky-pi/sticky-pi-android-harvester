@@ -484,6 +484,11 @@ public class DeviceHandler extends Thread {
                     (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
             Collections.sort(keys);
             n_to_download = keys.size();
+
+            n_skipped.set(0);
+            n_downloaded.set(0);
+            n_errored.set(0);
+
             for(String k : keys){
 
                 String hash = out.getString(k);
