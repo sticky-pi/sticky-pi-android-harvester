@@ -1,8 +1,9 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 import android.content.Context;
-import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,14 +12,15 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.navigation.fragment.NavHostFragment;
+
+import com.piee.sticky_pi_data_harvester.R;
+
+import java.io.File;
 import java.lang.reflect.Field;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.Period;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
@@ -30,14 +32,17 @@ public class DeviceAdapter extends BaseAdapter {
     MainActivity main_activity;
     private LayoutInflater layoutInflater;
     private Context context;
+    private DeviceListFragment m_parentFragment;
 
     public Hashtable<String, DeviceHandler> get_device_dict() {
         return main_activity.get_device_dict();
     }
-    public DeviceAdapter(Context aContext,  MainActivity main_activ) {
+    public DeviceAdapter(Context aContext,  MainActivity mainActivity, DeviceListFragment parentFragment) {
+
         this.context = aContext;
-        main_activity = main_activ;
+        main_activity = mainActivity;
         layoutInflater = LayoutInflater.from(aContext);
+        m_parentFragment = parentFragment;
     }
 
 
@@ -45,7 +50,7 @@ public class DeviceAdapter extends BaseAdapter {
 
         int days = (int) Math.floor(seconds / (3600*24));
         int hrs   = (int) Math.floor(seconds / 3600);
-        long mnts = (long) Math.floor(seconds / 60);
+        long mins = (long) Math.floor(seconds / 60);
 
         if(days >= 2){
             return days + " d ago";
@@ -53,8 +58,8 @@ public class DeviceAdapter extends BaseAdapter {
         if(hrs >= 2){
             return hrs + " h ago";
         }
-        if(mnts >= 2){
-            return mnts + " min ago";
+        if(mins >= 2){
+            return mins + " min ago";
         }
         if(seconds <= 2 ) {
             return "now";
@@ -70,7 +75,7 @@ public class DeviceAdapter extends BaseAdapter {
         int i =0;
         while(e.hasMoreElements()){
             String k = e.nextElement();
-            Long time = Objects.requireNonNull(get_device_dict().get(k)).time_created;
+            Long time = Objects.requireNonNull(get_device_dict().get(k)).get_time_created();
             device_times.add(time);
             device_keys[i] = k;
             map.add(i);
@@ -78,6 +83,8 @@ public class DeviceAdapter extends BaseAdapter {
         }
 
         Collections.sort(map, (c1, c2) -> Long.compare(device_times.get((Integer) c2), device_times.get((Integer) c1)));
+
+
         String key = device_keys[map.get(position)];
         return key;
     }
@@ -109,6 +116,9 @@ public class DeviceAdapter extends BaseAdapter {
 
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
+        DeviceHandler device_handler = this.get_device_dict().get(position_to_key(position));
+        assert device_handler != null;
+
         if (convertView == null) {
             convertView = layoutInflater.inflate(R.layout.grid_item_layout, null);
             holder = new ViewHolder();
@@ -119,32 +129,66 @@ public class DeviceAdapter extends BaseAdapter {
                 holder.last_pace = (TextView) convertView.findViewById(R.id.last_pace);
                 holder.available_disk_space = (TextView) convertView.findViewById(R.id.text_view_available_disk_space);
                 holder.rectangle = (View) convertView.findViewById(R.id.myRectangleView);
+
+                //
+                holder.rectangle.setClickable(true);
+
+                holder.rectangle.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        Log.i("info", "clicked");
+                        Bundle bundle = new Bundle();
+                        // First string means the key to retrieve the second string
+                        bundle.putString("a", device_handler.get_device_id());
+                        NavHostFragment.findNavController(m_parentFragment)
+                                .navigate(R.id.action_DeviceFragment_to_DetailFragment, bundle);
+                    }
+                });
+                //
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
 
-        DeviceHandler device_handler = this.get_device_dict().get(position_to_key(position));
+
+
         if(device_handler.get_is_ghost()){
-            holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
+            if(device_handler.get_status().equals("errored"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_errored);
+            else
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_ghost);
         }
         else {
-            holder.rectangle.setBackgroundResource(R.drawable.rectangle);
+            if(device_handler.get_status().equals("starting"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_starting);
+
+            if(device_handler.get_status().equals("errored"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_errored);
+
+            else  if(device_handler.get_status().equals("syncing"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_syncing);
+
+            else if(device_handler.get_status().equals("done"))
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_done);
+
+            else
+                holder.rectangle.setBackgroundResource(R.drawable.rectangle_unknown);
+
         }
-//        holder.countryNameView.setText(country.getCountryName());
-        assert device_handler != null;
 
         holder.device_id.setText(device_handler.get_device_id());
-        //fixme ifelse status is not starting:
+        //todo ifelse status is not starting:
         String txt =
                 device_handler.get_n_downloaded() + device_handler.get_n_skipped() + "/" + device_handler.get_n_to_download() +
                         "(" + device_handler.get_n_skipped()+ ")";
 
         holder.downloaded_files.setText(txt);
+
         if(device_handler.get_n_errored() > 0)
-            holder.downloaded_files.setTextColor(Color.parseColor("#FF0000"));
+            holder.downloaded_files.setTypeface(null, Typeface.BOLD);
         else
-            holder.downloaded_files.setTextColor(Color.parseColor("#000000"));
+            holder.downloaded_files.setTypeface(null, Typeface.NORMAL);
+//            holder.downloaded_files.setTextColor(Color.parseColor("#000000"));
 
         int battery_icon_num = (int ) (1 + 6.0 * device_handler.get_battery_level() /100.0);
         if (battery_icon_num < 1)
@@ -157,7 +201,9 @@ public class DeviceAdapter extends BaseAdapter {
         holder.battery_level.setText(String.format("%02d", device_handler.get_battery_level())+ "%");
         holder.battery_level.setCompoundDrawablesWithIntrinsicBounds(battery_icon_id, 0,0, 0);
 
+
         long delta_t =   Instant.now().getEpochSecond() - device_handler.get_last_pace();
+
         holder.last_pace.setText(secs_to_human_durations(delta_t));
         if(device_handler.get_status().equals("done")) {
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_check_12, 0);
@@ -165,17 +211,26 @@ public class DeviceAdapter extends BaseAdapter {
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
 
         }else if((device_handler.get_status().equals("starting"))){
-            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_hourglass_top_12, 0);
+            holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_sync_12, 0);
         }else{
             holder.device_id.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_baseline_error_12, 0);
         }
         holder.available_disk_space.setText(String.format("%.2f", device_handler.get_available_disk_space()) + "%" );
-        String img_path =device_handler.get_last_image_path();
-        if(img_path.compareTo("") != 0) {
+        String img_path = device_handler.get_last_image_path() + ".thumbnail";
+
+        if(new File(img_path).isFile()) {
             Uri img_uri=Uri.parse(img_path);
             holder.last_image.setImageURI(img_uri);
         }
+        else{
+            if(device_handler.get_status().equals("errored")){
 
+                holder.last_image.setImageResource(R.drawable.ic_thumbnail_errored_sync);
+            }
+            else {
+                holder.last_image.setImageResource(R.drawable.ic_thumbnail_syncing);
+            }
+        }
         return convertView;
     }
 
@@ -189,6 +244,6 @@ public class DeviceAdapter extends BaseAdapter {
         TextView downloaded_files;
         TextView last_pace;
         View rectangle;
-}
+    }
 
 }

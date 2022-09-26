@@ -7,7 +7,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <uses-permission
         android:required="true"
@@ -16,6 +17,13 @@
     <uses-permission
         android:required="true"
         android:name="android.permission.CHANGE_WIFI_STATE"/>
+
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <permission android:name="android.permission.OVERRIDE_WIFI_CONFIG"/>
+
 
     <uses-permission
         android:required="true"
@@ -39,7 +47,7 @@
         android:requestLegacyExternalStorage="true"
         >
         <activity
-            android:name=".MainActivity"
+            android:name="com.piee.sticky_pi_data_harvester.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.StickyPiDataHarvester.NoActionBar" >
@@ -48,8 +56,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".DeviceManagerService" />
-        <service android:name=".FileManagerService" />
+        <service android:name="com.piee.sticky_pi_data_harvester.DeviceManagerService" />
+        <service android:name="com.piee.sticky_pi_data_harvester.FileManagerService" />
     </application>
 
 </manifest>

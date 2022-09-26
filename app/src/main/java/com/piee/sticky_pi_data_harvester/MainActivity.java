@@ -1,4 +1,4 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
 
 import static java.lang.Thread.sleep;
@@ -27,9 +27,9 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-import com.example.sticky_pi_data_harvester.databinding.ActivityMainBinding;
+import com.piee.sticky_pi_data_harvester.R;
+import com.piee.sticky_pi_data_harvester.databinding.ActivityMainBinding;
 
-import java.util.ArrayList;
 import java.util.Hashtable;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
 
-            Log.e("TODEL", "device service connecteing");
+            Log.e("", "device service connecteing");
             DeviceManagerService.MyBinder binder = (DeviceManagerService.MyBinder) service;
             device_manager_service = binder.getService();
             device_manager_service_bound = true;
@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             device_manager_service_bound = false;
+            device_manager_service = null;
         }
     };
 
@@ -70,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
-            Log.e("TODEL", "file service connecteing");
             FileManagerService.MyBinder binder = (FileManagerService.MyBinder) service;
             file_manager_service = binder.getService();
             file_manager_service_bound = true;
@@ -79,8 +79,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             file_manager_service_bound = false;
-
-            Log.e("TODEL", "file disconnected");
+            file_manager_service = null;
         }
     };
 
@@ -95,15 +94,12 @@ public class MainActivity extends AppCompatActivity {
 
 
     public FileManagerService get_file_manager_service() {
-//        if(file_manager_service == null) {
-//            Log.w(TAG, "File service not bound, so returning empty list");
-//            return new ArrayList<>();
-//        }
         return file_manager_service;
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("activity", "onCreate"); // Placeholder for debug
         super.onCreate(savedInstanceState);
         requestLocationPermission();
 
@@ -127,41 +123,69 @@ public class MainActivity extends AppCompatActivity {
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
-        Intent service_intent_fm = new Intent(this, FileManagerService.class);
-        bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
 
-        Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
-        bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if(!device_manager_service_bound) {
+            Intent service_intent_fm = new Intent(this, FileManagerService.class);
+            getApplicationContext().bindService(service_intent_fm, file_manager_service_connection, Context.BIND_AUTO_CREATE);
+            Log.d("activity", "binding device manager"); // Placeholder for debug
+        }
+        if(!file_manager_service_bound) {
+            Intent service_intent_dm = new Intent(this, DeviceManagerService.class);
+            getApplicationContext().bindService(service_intent_dm, device_manager_service_connection, Context.BIND_AUTO_CREATE);
+            Log.d("activity", "binding file manager"); // Placeholder for debug
+        }
 
     }
     @Override
     protected void onStart() {
+        Log.d("activity", "onStart"); // Placeholder for debug
         super.onStart();
+
 
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unbindService(device_manager_service_connection);
-        device_manager_service_bound = false;
-        unbindService(file_manager_service_connection);
-        file_manager_service_bound = false;
-    }
+        Log.d("activity", "onDestroy"); // Placeholder for debug
 
+        if(device_manager_service_bound) {
+            getApplicationContext().unbindService(device_manager_service_connection);
+            device_manager_service_bound = false;
+            device_manager_service = null;
+        }
+
+        if(file_manager_service_bound) {
+            getApplicationContext().unbindService(file_manager_service_connection);
+            file_manager_service_bound = false;
+            file_manager_service = null;
+        }
+
+    }
 
     @Override
     public void onResume() {
+        Log.d("activity", "onResume"); // Placeholder for debug
         super.onResume();
     }
 
     @Override
     public void onPause() {
+        Log.d("activity", "onPause"); // Placeholder for debug
         super.onPause();
-        }
+    }
 
+
+    @Override
+    protected void onStop() {
+        Log.d("activity", "onStop"); // Placeholder for debug
+
+        super.onStop();
+
+    }
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -181,6 +205,18 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_settings) {
             NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
             navController.navigate(R.id.PreferenceFragment);
+            return true;
+        }
+
+        if (id == R.id.action_images) {
+            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController.navigate(R.id.ImagesFragment);
+            return true;
+        }
+
+        if (id == R.id.action_devices) {
+            NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+            navController.navigate(R.id.DeviceListFragment);
             return true;
         }
 

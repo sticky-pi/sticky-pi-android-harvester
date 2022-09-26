@@ -1,8 +1,8 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class DeviceGhostHandler extends com.example.sticky_pi_data_harvester.DeviceHandler {
+public class DeviceGhostHandler extends DeviceHandler {
     JSONObject m_properties = null;
     public DeviceGhostHandler(JSONObject properties){
         super();
@@ -10,6 +10,15 @@ public class DeviceGhostHandler extends com.example.sticky_pi_data_harvester.Dev
         is_ghost = true;
     }
 
+
+    long safe_get_long_prop(String key){
+        try {
+            return m_properties.getLong(key);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
 
 
     int safe_get_int_prop(String key){
@@ -47,17 +56,15 @@ public class DeviceGhostHandler extends com.example.sticky_pi_data_harvester.Dev
     public String get_status(){return safe_get_string_prop("status");}
 
     public long get_last_pace(){
-        try {
-            return m_properties.getLong("last_pace");
-        } catch (JSONException e) {
-            e.printStackTrace();
-            return 0;
-        }
+        return safe_get_long_prop("last_pace");
+    }
+    public long get_time_created(){
+        return safe_get_long_prop("time_created");
     }
 
     public float get_available_disk_space(){
         try {
-            return (float) m_properties.getDouble("last_pace");
+            return (float) m_properties.getDouble("available_disk_space");
         } catch (JSONException e) {
             e.printStackTrace();
             return 0.0F;

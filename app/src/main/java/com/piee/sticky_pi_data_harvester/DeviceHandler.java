@@ -1,17 +1,18 @@
-package com.example.sticky_pi_data_harvester;
+package com.piee.sticky_pi_data_harvester;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.HttpURLConnection;
@@ -19,17 +20,20 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
 import java.time.Instant;
 
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,7 +45,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.os.Environment;
 import android.util.Log;
 
-//fixme does not work when connected to nordvpn app!!
+//todo does not work when connected to nordvpn app!!
 
 
 public class DeviceHandler extends Thread {
@@ -50,11 +54,16 @@ public class DeviceHandler extends Thread {
     final static double MAX_LIPO_VOLTAGE = 4.2;
     final static double MIN_LIPO_VOLTAGE = 3.5;
     final static long KEEP_ALIVE_TIMEOUT = 30;
+    final static long INTERNAL_TIMEOUT = 60; // error if device not seen in this time in seconds
+    final static long SHORT_TIMEOUT = 5000; // error if device not seen in this time in seconds
+
+    final static long DOWNLOAD_ALL_IMG_TIMEOUT = 60 * 15; // fail to dowload after that many minutes
 
     // ghosts are persistent device status used to populate the initial view
     protected boolean is_ghost = false;
 
     long last_keep_alive = 0;
+    long internal_pacemaker = 0;
     private Location location;
     String host_address;
     String device_id;
@@ -68,9 +77,9 @@ public class DeviceHandler extends Thread {
     long device_datetime;
     long time_created;
     int n_to_download = -1;
-    int n_downloaded = 0;
-    int n_skipped = 0;
-    int n_errored = 0;
+    final AtomicInteger n_downloaded = new AtomicInteger(0);
+    final  AtomicInteger n_skipped = new AtomicInteger( 0);
+    final  AtomicInteger n_errored = new AtomicInteger(0);
     int battery_level=0;
 
     String version = "";
@@ -108,10 +117,9 @@ public class DeviceHandler extends Thread {
         location = loc;
         Log.i(TAG, "Registering device " + device_id + " for sync. IP = " + host_address);
         last_pace = Instant.now().getEpochSecond();
-        //fixme CHECK permissions/ presence of sd card
+
+        //todo CHECK permissions/ presence of sd card
         target_dir =  storage_dir + "/" + device_id;
-        //fixme delettttttttttttttttttttttttttte
-        delete_local_files();
     }
 
 
@@ -127,17 +135,19 @@ public class DeviceHandler extends Thread {
     }
 
     public int get_n_downloaded(){
-        return n_downloaded;
+        return n_downloaded.get();
     }
 
     public int get_n_errored(){
-        return n_errored;
+        return n_errored.get();
     }
 
     public int get_n_skipped(){
-        return n_skipped;
+        return n_skipped.get();
     }
-
+    public long get_time_created(){
+        return time_created;
+    }
     public int get_battery_level(){
         double voltage = (battery_level / 100.0) * REF_VOLTAGE / VOLTAGE_DIVIDER;
         double out = (voltage - MIN_LIPO_VOLTAGE) / (MAX_LIPO_VOLTAGE - MIN_LIPO_VOLTAGE);
@@ -176,13 +186,24 @@ public class DeviceHandler extends Thread {
         return sb.toString();
     }
 
-    public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        try (InputStream is = new URL(url).openStream()) {
+    public static JSONObject readJsonFromUrl(String url, int timeout) throws IOException, JSONException {
+
+        URLConnection connection = new URL(url).openConnection();
+        JSONObject json  = null;
+        try  {
+            connection.setConnectTimeout(timeout);
+            InputStream is = connection.getInputStream();
             BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
             String jsonText = readAll(rd);
-            JSONObject json = new JSONObject(jsonText);
-            return json;
+            json = new JSONObject(jsonText);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e(TAG,"IO exception" + e);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Log.e(TAG,"JSON exception" );
         }
+        return json;
     }
     public static boolean createDirIfNotExists(String path) {
         boolean ret = true;
@@ -206,20 +227,51 @@ public class DeviceHandler extends Thread {
 
     private void delete_local_files(){
         File dir = new File(target_dir);
+        Log.e(TAG, "Deleting local files. likely for development");
         if (dir.isDirectory())
         {
+
             String[] children = dir.list();
             for (int i = 0; i < children.length; i++)
             {
-                new File(dir, children[i]).delete();
+                File file = new File(dir, children[i]);
+                if (file.isDirectory()) {
+                    String[] grand_children = file.list();
+                    for (int j = 0; j < grand_children.length; j++){
+                        File grand_file = new File(file, grand_children[j]);
+                        if(grand_file.isFile()){
+                            grand_file.delete();
+                        }
+                    }
+                }
+                else
+                    file.delete();
             }
         }
     }
 
     private  boolean get_log() {
         try {
-            JSONObject out = readJsonFromUrl(log_url.toString());
-            //fixme write to file!
+            JSONObject json = readJsonFromUrl(log_url.toString(), (int) INTERNAL_TIMEOUT);
+            if(json== null)
+                return false;
+            String log = target_dir + "/" + device_id +".log";
+            String tmp_log = log + "~";
+            File tmp_file = new File(tmp_log);
+
+            try (PrintStream out = new PrintStream(new FileOutputStream(tmp_log))) {
+                out.print(json.toString());
+                out.close();
+                boolean success = tmp_file.renameTo(new File(log));
+            }
+            catch (Exception e){
+                Log.e(TAG, String.valueOf(e));
+            }
+            finally {
+                if(tmp_file.isFile()){
+                    boolean _tmp = tmp_file.delete();
+                }
+            }
 
         } catch (IOException | JSONException e) {
             e.printStackTrace();
@@ -231,7 +283,9 @@ public class DeviceHandler extends Thread {
 
     private  boolean get_metadata() {
         try {
-            JSONObject out = readJsonFromUrl(status_url.toString());
+            JSONObject out = readJsonFromUrl(status_url.toString(), (int) INTERNAL_TIMEOUT);
+            if(out== null)
+                return false;
             device_id = out.getString("device_id");
             version = out.getString("version");
             device_datetime  = (long) out.getDouble("datetime");
@@ -250,33 +304,73 @@ public class DeviceHandler extends Thread {
         last_pace = Instant.now().getEpochSecond();
         return true;
     }
-    private String compute_hash(String path){
+    static public String compute_hash(String path){
         try {
             return String.valueOf(Files.size(Paths.get(path )));
         } catch (IOException e) {
             return "";
         }
     }
-    private  boolean get_single_image(URL remote_url, String path, String hash, int retry) {
+    // 0 = success, 1 = skipped, 2= error
+    private  int get_single_image(URL remote_url, String path, String hash, int retry) {
         Log.i(TAG, "Getting: "+ remote_url.toString());
-//
+
+        String day_dir_str = (new File (path)).getParent();
+        assert day_dir_str != null;
+        File day_dir = new File(day_dir_str);
+        if (!(day_dir).isDirectory()){
+            boolean success = day_dir.mkdirs();
+            if(!success){
+                // we recheck in case another thread created the dir just now
+                if(!(day_dir).isDirectory()) {
+                    Log.e(TAG, "Could not create subdirectory: " + day_dir_str);
+                    return 2;
+                }
+            }
+        }
+
         if(retry > 3){
             Log.e(TAG, "Max retry reached. Failed to get image " + remote_url.toString());
-            n_errored ++;
-            return false;
-
+            return 2;
         }
 
         final String tmp_path  = path + ".tmp";
 
+        File trace = new File(path + ".trace");
+        if(trace.exists()){
+            BufferedReader reader = null;
+            try {
+                reader = new BufferedReader(new FileReader(trace));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            String trace_hash = null;
+            try {
+                trace_hash = reader.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(!Objects.equals(trace_hash, hash)){
+                if(trace.delete()) {
+                    Log.e(TAG, "Local trace" + trace.getName() + " has a different hash than device hash. Trace deleted!");
+                }
+            }
+            else {
+                Log.i(TAG, "Skipping trace image: " + trace.getName());
+                return 1;
+            }
+
+        }
+
         if (new File(path).exists()){
             if(compute_hash(path).equals(hash)){
                 Log.i(TAG, "Skipping preexisting image: " + remote_url);
-                n_skipped ++;
+//                n_skipped ++;
                 last_pace = Instant.now().getEpochSecond();
-                return true;
+                return 1;
             }
         }
+
         URLConnection conn = null;
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try {
@@ -313,8 +407,10 @@ public class DeviceHandler extends Thread {
             output.writeTo(outputStream);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+            Log.e(TAG, "FileNotFoundException in image download");
         } catch (IOException e) {
             e.printStackTrace();
+            Log.e(TAG, "IOException in image download");
         }
 
         String local_hash = compute_hash(tmp_path);
@@ -325,14 +421,12 @@ public class DeviceHandler extends Thread {
             File out = new File(path);
             tmp_file.renameTo(out);
 
-            //fixme iff > than previous
             File last_image_file = new File(last_image_path);
             if(last_image_file.getName().compareTo(out.getName()) < 0 )
                 last_image_path = out.getAbsolutePath();
 
-            n_downloaded++;
             last_pace = Instant.now().getEpochSecond();
-            return true;
+            return 0;
         }
         else {
             Log.w(TAG, "Wrong hash " + local_hash + " != " + hash + " for image: " + remote_url.toString() + ". Retrying...");
@@ -374,43 +468,66 @@ public class DeviceHandler extends Thread {
 //        boolean errored = false;
         try {
             Log.w(TAG, "URL: " + images_url.toString());
-            JSONObject out = readJsonFromUrl(images_url.toString());
+            JSONObject out = readJsonFromUrl(images_url.toString(), (int) INTERNAL_TIMEOUT);
+            if(out== null)
+                return false;
             Iterator<String> it = out.keys();
-            n_to_download = 0;
+
             // todo images by date sort here
 //            so we get the old ones first!
+            List<String> keys = new ArrayList<String>();
             while (it.hasNext()) {
-                n_to_download+=1;
-                it.next();
+                keys.add(it.next());
             }
+
             ThreadPoolExecutor executor =
                     (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
-            it = out.keys();
-            while (it.hasNext()){
-                String k = it.next();
+            Collections.sort(keys);
+            n_to_download = keys.size();
+
+            n_skipped.set(0);
+            n_downloaded.set(0);
+            n_errored.set(0);
+
+            for(String k : keys){
+
                 String hash = out.getString(k);
                 String filename = device_id + "." + k + ".jpg";
-                URL image_url = new URL("http", host_address, port, "static/" + filename);
+                String day_str = k.split("_")[0] ;
+                final URL image_url;
+
+                if(version.compareTo("3.0.1") >= 0)
+                    image_url = new URL("http", host_address, port, "static/"  + device_id +  "/" + day_str + "/"+ filename);
+                else
+                    image_url = new URL("http", host_address, port, "static/"  + device_id  + "/"+ filename);
 
 
                 executor.submit( () -> {
-                    get_single_image(image_url, target_dir + "/" + filename, hash, 0);
+                    int status = get_single_image(image_url, target_dir + "/" + day_str + "/" + filename, hash, 0);
+                    if(status == 0) n_downloaded.getAndIncrement();
+                    else if(status == 1) n_skipped.getAndIncrement();
+                    else if(status == 2) n_errored.getAndIncrement();
+                    else Log.e(TAG, "Unexpected return status for " + filename);
                     write_persistent_device_status();
                     long now =  Instant.now().getEpochSecond();
+                    internal_pacemaker = Instant.now().getEpochSecond();
+
                     if (now - last_keep_alive > KEEP_ALIVE_TIMEOUT) {
                         last_keep_alive = now;
                         keep_alive();
                     }
-                });
-            }
 
+                }
+                );
+
+            }
             executor.shutdown();
-            executor.awaitTermination(15, TimeUnit.MINUTES);
+            executor.awaitTermination(DOWNLOAD_ALL_IMG_TIMEOUT, TimeUnit.SECONDS);
         } catch (IOException | JSONException | InterruptedException e) {
             e.printStackTrace();
             return false;
         }
-        return n_errored == 0;
+        return n_errored.get() == 0;
     }
 
     private  boolean keep_alive_or_clear_disk(URL url){
@@ -429,6 +546,9 @@ public class DeviceHandler extends Thread {
             conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
+
+            conn.setConnectTimeout((int) SHORT_TIMEOUT);
+            conn.setReadTimeout((int) SHORT_TIMEOUT);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -487,6 +607,9 @@ public class DeviceHandler extends Thread {
             conn = (HttpURLConnection) metadata_url.openConnection();
 
             conn.setRequestMethod("POST");
+
+            conn.setConnectTimeout((int) SHORT_TIMEOUT);
+            conn.setReadTimeout((int) 5000);
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
             conn.setDoInput(true);
@@ -543,9 +666,8 @@ public class DeviceHandler extends Thread {
     public void run() {
         createDirIfNotExists(target_dir);
 
-        //fixme timeout here
-        while (true){
-                Log.i(TAG, "Running: " + device_id + ", " + host_address + ":"+ port);
+        internal_pacemaker = Instant.now().getEpochSecond();
+        while (Instant.now().getEpochSecond() - internal_pacemaker < INTERNAL_TIMEOUT){
                 try {
                     sleep(1000);
                 } catch (InterruptedException e) {
@@ -554,6 +676,13 @@ public class DeviceHandler extends Thread {
 
                 if (! get_metadata())
                     continue;
+                internal_pacemaker = Instant.now().getEpochSecond();
+                // delete local files on mock devices
+
+//                if(is_mock || device_id.equals("512858f4"))
+                if(is_mock)
+                    delete_local_files();
+
                 write_persistent_device_status();
                 if (! get_log())
                     continue;
@@ -574,12 +703,17 @@ public class DeviceHandler extends Thread {
                     stop_server();
                     status = "done";
                     write_persistent_device_status();
+                    return;
                 }
                 else {
                     status = "errored";
+                    Log.e(TAG, "Device "+ device_id + " errored");
+                    write_persistent_device_status();
                 }
-            return;
         }
+        status = "errored";
+        write_persistent_device_status();
+        Log.e(TAG, "Device "+ device_id + " timeout");
     }
 
 
