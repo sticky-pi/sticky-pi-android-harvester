@@ -485,13 +485,8 @@ public class FileHandler extends Thread{
             for (File img : images) {
                 String fields[] = img.getName().split("\\.");
                 if (fields.length > 2) {
-
-//                        LocalDateTime date = LocalDateTime.parse(fields[1], date_formatter);
-//                        Date date = date_formatter.parse(fields[1]);
-                    long timestamp = parse_date(fields[1]);
+                    long timestamp = parse_date(img.getName());
                     image_timestamps.add(timestamp);
-
-
                 } else {
                     Log.e(TAG, "Unexpected image name: " + img.getName());
                 }
